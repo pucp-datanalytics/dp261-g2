@@ -9,7 +9,7 @@
 | _Betty Rodriguez_ | _Business Analyst_ |
 | _Jorge Caballero_ | _Data Engineer_ |
 | _Mónica Velazquez_ | _Data Analyst_ |
-| _Luz Pumacahua_ | _Mónica Velazquez_ |
+| _Luz Pumacahua_ | _Prototype Developer_ |
 
 ## GitHub Project
 
