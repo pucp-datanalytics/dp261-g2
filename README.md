@@ -10,6 +10,10 @@
 | _Jorge Caballero_ | _Data Engineer_ |
 | _Mónica Velazquez_ | _Data Analyst_ |
 | _Renzo Salazar_ | _Prototype Developer_ |
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/BA
 ## GitHub Project
 
 Tablero del proyecto: [dp261-g2 Project](https://github.com/orgs/pucp-datanalytics/projects/2)
