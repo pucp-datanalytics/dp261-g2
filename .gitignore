@@ -4,6 +4,3 @@ __pycache__/
 git add .
 # Jupyter
 .ipynb_checkpoints/
-
-# Data
-data/raw/*.csv
