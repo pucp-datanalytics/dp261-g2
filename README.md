@@ -5,11 +5,11 @@
 | Nombre | Rol |
 |--------|-----|
 | Pedro Shiguihara | Product Owner (P.O) |
-| _Renzo Salazar_ | _Project Manager_ |
+| _Luz Pumacahua_ | _Project Manager_ |
 | _Betty Rodriguez_ | _Business Analyst_ |
 | _Jorge Caballero_ | _Data Engineer_ |
 | _Mónica Velazquez_ | _Data Analyst_ |
-| _Luz Pumacahua_ | _Prototype Developer_ |
+| _Renzo Salazar_ | _Prototype Developer_ |
 
 ## GitHub Project
 
