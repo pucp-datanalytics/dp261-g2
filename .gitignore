@@ -1,7 +1,0 @@
-__pycache__/
-*.pyc
-.env
-envs/
-# Jupyter
-.ipynb_checkpoints/
-notebooks/.ipynb_checkpoints/
