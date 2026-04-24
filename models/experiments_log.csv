@@ -1,6 +1,6 @@
-model,params,date,recall_cv_mean,f1_cv_mean,accuracy_cv_mean,selected,notes
-gb,default,2026-04-24,0.665824,0.606817,0.762952,True,"Mejor recall, seleccionado para Sprint 4"
-lr,default,2026-04-24,0.651285,0.532426,0.685731,False,"Recall bajo frente a GB, descartado"
-knn,default,2026-04-24,0.622419,0.547341,0.717164,True,"Recall competitivo y bajo costo computacional, seleccionado"
-svm,default,2026-04-24,0.595027,0.565592,0.748886,True,Seleccionado en test; excluido de CV por alto costo computacional
-dt,default,2026-04-24,0.584703,0.54869,0.735745,False,"Recall más bajo de todos, descartado"
+model,params,date,cv_accuracy,cv_precision,cv_recall,cv_f1,cv_roc_auc,test_recall,test_f1,test_accuracy,selected,notes
+gb,random_state=42,2026-04-24,0.791933,0.794422,0.787772,0.791068,0.877783,0.665824,0.606817,0.762952,True,Mejor AUC y F1 en CV. Seleccionado para Sprint 4
+dt,random_state=42,2026-04-24,0.787802,0.785204,0.792461,0.788799,0.788192,0.584703,0.54869,0.735745,False,Buen recall en CV pero descartado frente a GB y KNN
+knn,default,2026-04-24,0.778783,0.763624,0.807587,0.784975,0.853985,0.622419,0.547341,0.717164,True,Mayor recall en CV (0.807). Seleccionado para Sprint 4
+lr,"random_state=42, max_iter=1000",2026-04-24,0.734476,0.717195,0.774284,0.744639,0.818114,0.651285,0.532426,0.685731,False,Menor desempeño general. Descartado
+svm,"probability=True, random_state=42",2026-04-24,,,,,,0.595027,0.565592,0.748886,False,Excluido de CV por costo computacional. Descartado: no carga correctamente
