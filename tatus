@@ -1,0 +1,106 @@
+* [33m7c75173[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m Final prototype: cleaning, feature engineering, balancing and pipeline
+* [33maf002d7[m Pipeline sin archivo pesado
+* [33m8efeaad[m Pipeline sin archivo pesado
+* [33m3c7b870[m Actualizo rama DE
+* [33m5e3d408[m feat: data cleaning updates, feature engineering and class balancing with SMOTE
+* [33m6523faa[m feat: update datasets
+* [33m1973b96[m feat: update feature engineering notebook
+* [33m88980b4[m Agrego dataset hotel bookings
+* [33m79fbe90[m Actualización de la data raw y notebook 02_data_loading
+* [33m22ff1db[m data: dataset intermedio post-limpieza Sprint 2
+* [33m08cf332[m feat(PB-07): limpieza completa - duplicados, nulos, outliers, data leakage
+* [33m44cad8b[m remove dvc cache from repo
+* [33m20ab26c[m ignore dvc folder in main
+* [33m845bd40[m Your current version of Antigravity is out of date. Please visit https://antigravity.google/download to download and install the latest version.
+* [33m3c35385[m create src folder
+* [33mc0b7874[m remove wrong scr file
+* [33mb70e8cf[m fix folders structure
+* [33med177e8[m remove wrong interim and processed files
+* [33m5fc9449[m feat: actualización notebook data loading
+* [33md4edf37[m merge DE into main
+* [33mdbcd8bc[m Actualiza configuración de DVC
+* [33m8f02ab6[m Actualiza configuración de DVC
+* [33mfb83f79[m track dataset with dvc
+* [33m6602556[m Nueva edición del notebook
+* [33mf17bd49[m Create scr
+* [33m1598586[m Update README.md
+* [33m01f738c[m Data loading completo y validation del notebook
+* [33m4805cad[m Limpieza de environment.yml para reproducibilidad en diferentes equipos
+* [33m48d7d20[m Environment actualizado y track data con DVC
+* [33m282e103[m Track data/raw with DVC
+* [33me033ad7[m Stop tracking data/raw with Git
+* [33m776fbc8[m Inicializa DVC
+[31m|[m *   [33m36c3c4f[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Merge pull request #28 from pucp-datanalytics/DE
+[31m|[m [32m|[m[33m\[m  
+[31m|[m [32m|[m * [33m663229c[m Pipeline sin archivo pesado
+[31m|[m * [33m|[m [33m64c1d9d[m Merge pull request #27 from pucp-datanalytics/DE
+[31m|[m [34m|[m[33m\[m[33m|[m 
+[31m|[m [34m|[m * [33m4c6589e[m Pipeline sin archivo pesado
+[31m|[m [34m|[m * [33me0e1062[m Actualizo rama DE
+[31m|[m [34m|[m * [33md21b45a[m feat: data cleaning updates, feature engineering and class balancing with SMOTE
+[31m|[m [34m|[m * [33mbefabb5[m feat: update datasets
+[31m|[m [34m|[m * [33m1ebbba3[m feat: update feature engineering notebook
+[31m|[m [34m|[m * [33madc7928[m data: dataset intermedio post-limpieza Sprint 2
+[31m|[m [34m|[m * [33m25a3646[m feat(PB-07): limpieza completa - duplicados, nulos, outliers, data leakage
+[31m|[m * [35m|[m   [33me8439a3[m Merge pull request #26 from pucp-datanalytics/PB-09
+[31m|[m [36m|[m[1;31m\[m [35m\[m  
+[31m|[m [36m|[m * [35m|[m [33me53f3af[m feat: data cleaning updates, feature engineering and class balancing with SMOTE
+[31m|[m [36m|[m[36m/[m [35m/[m  
+[31m|[m * [35m|[m [33mb95eeb7[m feat: update datasets
+[31m|[m * [35m|[m [33m25290c0[m feat: update feature engineering notebook
+[31m|[m * [35m|[m [33mc93f946[m Merge pull request #23 from pucp-datanalytics/DE
+[31m|[m [1;32m|[m[35m\[m[35m|[m 
+[31m|[m [1;32m|[m * [33mc2922cd[m Agrego dataset hotel bookings
+[31m|[m [1;32m|[m *   [33mda9db14[m Merge branch 'DE' of https://github.com/pucp-datanalytics/dp261-g2 into DE
+[31m|[m [1;32m|[m [1;34m|[m[1;35m\[m  
+[31m|[m [1;32m|[m * [1;35m|[m [33m532e076[m Actualización de la data raw y notebook 02_data_loading
+[31m|[m * [1;35m|[m [1;35m|[m   [33mdda4399[m Merge pull request #22 from pucp-datanalytics/feat/PB-07
+[31m|[m [1;36m|[m[31m\[m [1;35m\[m [1;35m\[m  
+[31m|[m [1;36m|[m * [1;35m|[m [1;35m|[m [33mc1a5018[m data: dataset intermedio post-limpieza Sprint 2
+[31m|[m [1;36m|[m * [1;35m|[m [1;35m|[m [33m1e4eaaa[m feat(PB-07): limpieza completa - duplicados, nulos, outliers, data leakage
+[31m|[m * [31m|[m [1;35m|[m [1;35m|[m   [33md3092ef[m Merge pull request #21 from pucp-datanalytics/DE
+[31m|[m [32m|[m[1;35m\[m [31m\[m [1;35m\[m [1;35m\[m  
+[31m|[m [32m|[m [1;35m|[m [31m|[m[1;35m_[m[1;35m|[m[1;35m/[m  
+[31m|[m [32m|[m [1;35m|[m[1;35m/[m[31m|[m [1;35m|[m   
+[31m|[m [32m|[m * [31m|[m [1;35m|[m   [33me5b3028[m Merge branch 'main' into DE
+[31m|[m [32m|[m [1;35m|[m[32m\[m [31m\[m [1;35m\[m  
+[31m|[m [32m|[m [1;35m|[m[32m/[m [31m/[m [1;35m/[m  
+[31m|[m [32m|[m[32m/[m[1;35m|[m [31m|[m [1;35m/[m   
+[31m|[m [32m|[m [1;35m|[m [31m|[m[1;35m/[m    
+[31m|[m [32m|[m [1;35m|[m[1;35m/[m[31m|[m     
+[31m|[m * [1;35m|[m [31m|[m [33maaeb143[m remove dvc cache from repo
+[31m|[m * [1;35m|[m [31m|[m [33m2225642[m ignore dvc folder in main
+[31m|[m * [1;35m|[m [31m|[m [33m5c6a1cb[m Your current version of Antigravity is out of date. Please visit https://antigravity.google/download to download and install the latest version.
+[31m|[m * [1;35m|[m [31m|[m [33mc474218[m create src folder
+[31m|[m * [1;35m|[m [31m|[m [33m850724e[m remove wrong scr file
+[31m|[m * [1;35m|[m [31m|[m [33mc6655dd[m fix folders structure
+[31m|[m * [1;35m|[m [31m|[m [33ma67480f[m remove wrong interim and processed files
+[31m|[m * [1;35m|[m [31m|[m   [33m937c270[m Merge pull request #20 from pucp-datanalytics/fix/notebook
+[31m|[m [36m|[m[1;31m\[m [1;35m\[m [31m\[m  
+[31m|[m [36m|[m * [1;35m|[m [31m|[m [33m308a681[m feat: actualización notebook data loading
+[31m|[m [36m|[m[36m/[m [1;35m/[m [31m/[m  
+[31m|[m [36m|[m * [31m|[m [33m2a8f064[m merge DE into main
+[31m|[m [36m|[m * [31m|[m [33m52eda9a[m Actualiza configuración de DVC
+[31m|[m [36m|[m * [31m|[m [33mdd97a30[m Actualiza configuración de DVC
+[31m|[m [36m|[m * [31m|[m   [33m26e0a2b[m Resolución de conflictos en .gitignore y README
+[31m|[m [36m|[m [1;32m|[m[1;33m\[m [31m\[m  
+[31m|[m [36m|[m [1;32m|[m * [31m\[m   [33m44864d5[m Merge branch 'DE' of https://github.com/pucp-datanalytics/dp261-g2 into DE :wq# Please enter a commit message to explain why this merge is necessary,
+[31m|[m [36m|[m [1;32m|[m [1;34m|[m[1;35m\[m [31m\[m  
+[31m|[m [36m|[m [1;32m|[m * [1;35m\[m [31m\[m   [33m067bb40[m merge BA into DE
+[31m|[m [36m|[m [1;32m|[m [1;36m|[m[31m\[m [1;35m\[m [31m\[m  
+[31m|[m [36m|[m [1;32m|[m [1;36m|[m * [1;35m|[m [31m|[m [33mdcad21f[m track dataset with dvc
+[31m|[m [36m|[m [1;32m|[m [1;36m|[m * [1;35m|[m [31m|[m [33m867691a[m stop tracking dataset with git
+[31m|[m [36m|[m [1;32m|[m [1;36m|[m * [1;35m|[m [31m|[m [33m6768a1e[m init dvc
+[31m|[m [36m|[m [1;32m|[m [1;36m|[m * [1;35m|[m [31m|[m [33m983ccc7[m[33m ([m[1;31morigin/BA[m[33m)[m Nueva edición del notebook
+[31m|[m [36m|[m * [1;36m|[m [31m|[m [1;35m|[m [31m|[m   [33meba9d76[m Merge branch 'main' into DE
+[31m|[m [36m|[m [1;35m|[m[36m\[m [1;36m\[m [31m\[m [1;35m\[m [31m\[m  
+[31m|[m [36m|[m [1;35m|[m[36m/[m [1;36m/[m [31m/[m [1;35m/[m [31m/[m  
+[31m|[m [36m|[m[36m/[m[1;35m|[m [1;36m|[m [31m|[m [1;35m/[m [31m/[m   
+[31m|[m [36m|[m [1;35m|[m [1;36m|[m[1;35m_[m[31m|[m[1;35m/[m [31m/[m    
+[31m|[m [36m|[m [1;35m|[m[1;35m/[m[1;36m|[m [31m|[m [31m|[m     
+[31m|[m * [1;35m|[m [1;36m|[m [31m|[m [31m|[m [33ma6aa940[m Create scr
+[31m|[m * [1;35m|[m [1;36m|[m [31m|[m [31m|[m [33mda2bfb5[m Update README.md
+[31m|[m * [1;35m|[m [1;36m|[m [31m|[m [31m|[m   [33mdf0fe34[m Merge pull request #17 from pucp-datanalytics/PD
+[31m|[m [34m|[m[31m\[m [1;35m\[m [1;36m\[m [31m\[m [31m\[m  
+[31m|[m [34m|[m[31m/[m [1;35m/[m [1;36m/[m [31m/[m [31m/[m  
+[31m|[m[31m/[m[34m|[m [1;35m|[m [1;36m|[m [3
