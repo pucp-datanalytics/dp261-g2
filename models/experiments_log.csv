@@ -1,0 +1,6 @@
+model,params,date,recall_cv_mean,f1_cv_mean,accuracy_cv_mean,selected,notes
+gb,default,2026-04-24,0.665824,0.606817,0.762952,True,"Mejor recall, seleccionado para Sprint 4"
+lr,default,2026-04-24,0.651285,0.532426,0.685731,False,"Recall bajo frente a GB, descartado"
+knn,default,2026-04-24,0.622419,0.547341,0.717164,True,"Recall competitivo y bajo costo computacional, seleccionado"
+svm,default,2026-04-24,0.595027,0.565592,0.748886,True,Seleccionado en test; excluido de CV por alto costo computacional
+dt,default,2026-04-24,0.584703,0.54869,0.735745,False,"Recall más bajo de todos, descartado"
