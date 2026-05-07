@@ -1,6 +1,7 @@
-model,params,date,cv_accuracy,cv_precision,cv_recall,cv_f1,cv_roc_auc,test_recall,test_f1,test_accuracy,selected,notes
-gb,random_state=42,2026-04-24,0.791933,0.794422,0.787772,0.791068,0.877783,0.665824,0.606817,0.762952,True,Mejor AUC y F1 en CV. Seleccionado para Sprint 4
-dt,random_state=42,2026-04-24,0.787802,0.785204,0.792461,0.788799,0.788192,0.584703,0.54869,0.735745,False,Buen recall en CV pero descartado frente a GB y KNN
-knn,default,2026-04-24,0.778783,0.763624,0.807587,0.784975,0.853985,0.622419,0.547341,0.717164,True,Mayor recall en CV (0.807). Seleccionado para Sprint 4
-lr,"random_state=42, max_iter=1000",2026-04-24,0.734476,0.717195,0.774284,0.744639,0.818114,0.651285,0.532426,0.685731,False,Menor desempeño general. Descartado
-svm,"probability=True, random_state=42",2026-04-24,,,,,,0.595027,0.565592,0.748886,False,Excluido de CV por costo computacional. Descartado: no carga correctamente
+model,params,date,cv_accuracy,cv_precision,cv_recall,cv_f1,cv_roc_auc,test_accuracy,test_recall,test_f1,test_roc_auc,recall_gap,f1_gap,train_time_s,selected,notes
+dt,random_state=42,2026-05-05,0.816071,,0.761476,0.754286,0.807445,0.821484,0.773278,0.768712,0.820202,-0.011801,-0.014425,0.33,True,Rank 1 CV Recall. Sin overfitting. Seleccionado para Sprint 4
+rf,random_state=42,2026-05-05,0.862808,,0.752171,0.802576,0.926593,0.866994,0.769205,0.815815,0.934606,-0.017034,-0.013239,4.33,True,Rank 2 CV Recall. Mejor AUC (0.927). Modelo más robusto. Seleccionado para Sprint 4
+xgb,random_state=42,2026-05-05,0.84645,,0.713676,0.775089,0.915453,0.84556,0.716031,0.77685,0.916261,-0.002356,-0.001761,0.55,True,Rank 3 CV Recall. Gap mínimo de overfitting. Entrenamiento rápido. Seleccionado para Sprint 4
+lr,"random_state=42, max_iter=1000",2026-05-05,0.812653,,0.618413,0.709945,0.860963,0.784866,0.615115,0.706379,0.863555,0.003298,0.003566,4.3,False,CV Recall bajo (0.618). Modelo lineal insuficiente. Descartado
+gb,random_state=42,2026-05-05,0.818368,,0.616122,0.715516,0.885453,0.814479,0.611495,0.711231,0.883982,0.004628,0.004285,5.89,False,CV Recall bajo (0.616). Más lento que RF/XGB sin ventaja. Descartado
+NN,default,2026-05-05,0.808993,,0.614821,0.703766,0.87383,,0.647585,0.726027,0.885184,-0.032763,-0.022261,6.45,False,CV Recall más bajo (0.615). Mayor tiempo de entrenamiento. Descartado
