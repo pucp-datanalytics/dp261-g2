@@ -1,0 +1,5 @@
+outs:
+- md5: 64546b9bc1289c1f3568f3834c52d45d
+  size: 345938
+  hash: md5
+  path: baseline_xgb.pkl
