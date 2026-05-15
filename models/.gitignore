@@ -1,3 +1,12 @@
 /tuned_rf.pkl
 /baseline_rf.pkl
 /tuned_xgb.pkl
+/baseline_NN.pkl
+/baseline_dt.pkl
+/baseline_gb.pkl
+/baseline_lr.pkl
+/baseline_xgb.pkl
+/ensemble_hv.pkl
+/ensemble_stack.pkl
+/ensemble_sv.pkl
+/preprocessor.pkl
