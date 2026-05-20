@@ -1,13 +1,9 @@
 # ============================================================
 # Hotel Booking Cancellation API - Pydantic Schemas
 # ============================================================
-# Responsibilities:
-# - Define API input and output contracts.
-# - Validate user-friendly raw input before prediction.
-# ============================================================
 
 from datetime import date
-from typing import Literal
+from typing import Literal, List
 
 from pydantic import BaseModel, Field
 
@@ -26,6 +22,7 @@ class RawPredictionRequest(BaseModel):
     babies: int = Field(0, ge=0)
 
     meal: Literal["BB", "FB", "HB", "SC", "Undefined"]
+
     market_segment: Literal[
         "Direct",
         "Corporate",
@@ -34,6 +31,7 @@ class RawPredictionRequest(BaseModel):
         "Groups",
         "Complementary",
     ]
+
     distribution_channel: Literal[
         "Direct",
         "TA/TO",
@@ -49,6 +47,7 @@ class RawPredictionRequest(BaseModel):
     reserved_room_type: Literal[
         "A", "B", "C", "D", "E", "F", "G", "H", "L"
     ]
+
     assigned_room_type: Literal[
         "A", "B", "C", "D", "E", "F", "G", "H", "I", "K", "L"
     ]
@@ -57,6 +56,7 @@ class RawPredictionRequest(BaseModel):
     deposit_type: Literal["No Deposit", "Non Refund", "Refundable"]
 
     days_in_waiting_list: int = Field(..., ge=0)
+
     customer_type: Literal[
         "Contract",
         "Group",
@@ -85,7 +85,5 @@ class VersionResponse(BaseModel):
     model_name: str
     model_version: str
     model_file: str
-    preprocessor_file: str
-    expected_input_features: int
     model_type: str
-    preprocessor_type: str
+    pipeline_steps: List[str]
