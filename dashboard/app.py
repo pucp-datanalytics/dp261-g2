@@ -3,20 +3,33 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import plotly.express as px
 import joblib
+import shap
 
-# ========================
+from pathlib import Path
+
+from sklearn.metrics import (
+    confusion_matrix,
+    roc_curve,
+    roc_auc_score,
+    accuracy_score,
+    recall_score,
+    f1_score
+)
+
+# =========================================================
 # CONFIGURACIÓN
-# ========================
+# =========================================================
 
 st.set_page_config(
     page_title="Dashboard de cancelaciones hoteleras",
     layout="wide"
 )
 
-# ========================
-# DARK MODE CUSTOM
-# ========================
+# =========================================================
+# ESTILOS
+# =========================================================
 
 st.markdown("""
 <style>
@@ -37,42 +50,156 @@ h1, h2, h3, h4 {
 </style>
 """, unsafe_allow_html=True)
 
-# ========================
+# =========================================================
+# RUTA DEL MODELO
+# =========================================================
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+MODEL_PATH = (
+    BASE_DIR
+    / "models"
+    / "final_pipeline.pkl"
+)
+
+# =========================================================
+# CLEANING
+# =========================================================
+
+def clean_data(df):
+
+    df = df.copy()
+
+    cols_drop = [
+        "reservation_status",
+        "reservation_status_date",
+        "agent",
+        "company",
+        "country"
+    ]
+
+    df.drop(
+        columns=cols_drop,
+        inplace=True,
+        errors="ignore"
+    )
+
+    mask_people = (
+        (df["adults"] == 0)
+        &
+        (df["children"].fillna(0) == 0)
+        &
+        (df["babies"] == 0)
+    )
+
+    df = df[~mask_people]
+
+    df.dropna(
+        subset=["children"],
+        inplace=True
+    )
+
+    df["children"] = df[
+        "children"
+    ].astype(int)
+
+    df = df[
+        df["children"] != 10
+    ]
+
+    df = df[
+        df["adr"] >= 0
+    ]
+
+    p99 = df["adr"].quantile(0.99)
+
+    df["adr"] = df[
+        "adr"
+    ].clip(upper=p99)
+
+    return df
+
+# =========================================================
+# FEATURE ENGINEERING
+# =========================================================
+
+def feature_engineering(df):
+
+    df = df.copy()
+
+    # =====================================================
+    # TOTAL NIGHTS
+    # =====================================================
+
+    df["total_nights"] = (
+        df["stays_in_week_nights"]
+        +
+        df["stays_in_weekend_nights"]
+    )
+
+    # =====================================================
+    # TOTAL GUESTS
+    # =====================================================
+
+    df["total_guests"] = (
+        df["adults"]
+        +
+        df["children"]
+        +
+        df["babies"]
+    )
+
+    # =====================================================
+    # HIGH SEASON
+    # =====================================================
+
+    high_season = [
+        "July",
+        "August"
+    ]
+
+    df["is_high_season"] = (
+        df["arrival_date_month"]
+        .isin(high_season)
+        .astype(int)
+    )
+
+    # =====================================================
+    # LOG TRANSFORMS
+    # =====================================================
+
+    df["adr_log"] = np.log1p(
+        df["adr"]
+    )
+
+    df["lead_time_log"] = np.log1p(
+        df["lead_time"]
+    )
+
+    return df
+
+# =========================================================
 # CARGAR MODELO
-# ========================
+# =========================================================
 
-model = joblib.load(
-    "models/final_model.pkl"
-)
+@st.cache_resource
+def load_model():
 
-# ========================
+    model = joblib.load(
+        MODEL_PATH
+    )
+
+    return model
+
+model = load_model()
+
+# =========================================================
 # SIDEBAR
-# ========================
+# =========================================================
 
-st.sidebar.title("Panel de Control")
-
-st.sidebar.caption(
-    "Predicción inteligente de cancelaciones hoteleras"
+st.sidebar.title(
+    "Panel de Control"
 )
-
-st.sidebar.subheader("Métricas del Modelo")
-
-st.sidebar.metric(
-    "Recall",
-    "77.5%"
-)
-
-st.sidebar.metric(
-    "AUC-ROC",
-    "93.6%"
-)
-
-st.sidebar.metric(
-    "F1 Score",
-    "81.2%"
-)
-
-st.sidebar.divider()
 
 threshold = st.sidebar.slider(
     "Threshold de decisión",
@@ -85,353 +212,662 @@ st.sidebar.write(
     f"Threshold actual: {threshold:.2f}"
 )
 
-# ========================
-# HEADER
-# ========================
+st.sidebar.info("""
+Threshold bajos:
+↑ Recall
+↓ Precision
 
-st.title("Dashboard de cancelaciones hoteleras")
-
-st.write("""
-Dashboard interactivo para predicción
-de cancelaciones hoteleras.
+Threshold altos:
+↓ Recall
+↑ Precision
 """)
 
-st.markdown("""
-### Objetivo del Dashboard
+# =========================================================
+# HEADER
+# =========================================================
 
-Este dashboard permite:
+st.title(
+    "Dashboard de cancelaciones hoteleras"
+)
 
-- Evaluar el performance del modelo
-- Simular predicciones de cancelación
-- Explicar decisiones usando SHAP
+st.write("""
+Sistema interactivo de predicción
+de cancelaciones hoteleras basado
+en Machine Learning.
 """)
 
 st.divider()
 
-# ========================
-# TABS
-# ========================
+# =========================================================
+# CARGAR DATASET
+# =========================================================
 
-tab1, tab2, tab3 = st.tabs([
-    "📊 Performance",
-    "🤖 Predicciones",
-    "🔍 SHAP Explainability"
+uploaded = st.file_uploader(
+    "📂 Suba un archivo CSV",
+    type="csv"
+)
+
+if uploaded is None:
+
+    st.warning(
+        "Suba un dataset para comenzar."
+    )
+
+    st.stop()
+
+# =========================================================
+# LEER DATASET
+# =========================================================
+
+df_eval = pd.read_csv(
+    uploaded
+)
+
+st.success(
+    "Dataset cargado correctamente"
+)
+
+# =========================================================
+# PREVIEW
+# =========================================================
+
+with st.expander(
+    "Vista previa del dataset"
+):
+
+    st.dataframe(
+        df_eval.head(),
+        width="stretch"
+    )
+
+# =========================================================
+# GUARDAR ORIGINAL
+# =========================================================
+
+df_original = df_eval.copy()
+
+# =========================================================
+# CLEANING
+# =========================================================
+
+df_eval = clean_data(
+    df_eval
+)
+
+# =========================================================
+# FEATURE ENGINEERING
+# =========================================================
+
+df_eval = feature_engineering(
+    df_eval
+)
+
+# =========================================================
+# DEFINIR X / Y
+# =========================================================
+
+if "is_canceled" in df_eval.columns:
+
+    X_eval = df_eval.drop(
+        "is_canceled",
+        axis=1
+    )
+
+    y_eval = df_eval[
+        "is_canceled"
+    ]
+
+else:
+
+    X_eval = df_eval.copy()
+
+    y_eval = None
+
+# =========================================================
+# PREDICCIONES
+# =========================================================
+
+y_proba = model.predict_proba(
+    X_eval
+)[:,1]
+
+y_pred = (
+    y_proba >= threshold
+).astype(int)
+
+# =========================================================
+# RESULTADOS
+# =========================================================
+
+results = X_eval.copy()
+
+results["Probabilidad"] = np.round(
+    y_proba,
+    3
+)
+
+results["Predicción"] = np.where(
+    y_pred == 1,
+    "Cancelará",
+    "No cancelará"
+)
+
+# =========================================================
+# NIVEL DE RIESGO
+# =========================================================
+
+def riesgo(p):
+
+    if p > 0.7:
+        return "🔴 Alto"
+
+    elif p > 0.4:
+        return "🟡 Medio"
+
+    else:
+        return "🟢 Bajo"
+
+results["Nivel de Riesgo"] = results[
+    "Probabilidad"
+].apply(riesgo)
+
+# =========================================================
+# TABS
+# =========================================================
+
+tab1, tab2, tab3, tab4 = st.tabs([
+    "📈 Resumen Ejecutivo",
+    "🤖 Performance ML",
+    "📋 Predicciones",
+    "🔍 Explainability"
 ])
 
 # =========================================================
-# TAB 1 — PERFORMANCE
+# TAB 1 — RESUMEN EJECUTIVO
 # =========================================================
 
 with tab1:
 
-    st.subheader("Performance del Modelo")
+    st.subheader(
+        "Resumen Ejecutivo"
+    )
 
-    col1, col2 = st.columns(2)
+    total = len(results)
 
-    # =====================================================
-    # MATRIZ DE CONFUSIÓN
-    # =====================================================
+    cancelaciones = (
+        results["Predicción"]
+        ==
+        "Cancelará"
+    ).sum()
 
-    with col1:
+    riesgo_prom = results[
+        "Probabilidad"
+    ].mean()
 
-        st.write("### Matriz de Confusión")
-
-        cm = np.array([
-            [13826, 1176],
-            [1986, 6853]
-        ])
-
-        fig, ax = plt.subplots(figsize=(6,5))
-
-        sns.heatmap(
-            cm,
-            annot=True,
-            fmt="d",
-            cmap="Blues",
-            cbar=False,
-            ax=ax
-        )
-
-        ax.set_xlabel("Predicción")
-        ax.set_ylabel("Real")
-
-        ax.set_xticklabels([
-            "No Cancela",
-            "Cancela"
-        ])
-
-        ax.set_yticklabels([
-            "No Cancela",
-            "Cancela"
-        ])
-
-        st.pyplot(fig)
+    pct_alto = (
+        results["Nivel de Riesgo"]
+        ==
+        "🔴 Alto"
+    ).mean() * 100
 
     # =====================================================
-    # CURVA ROC
+    # KPIS
     # =====================================================
 
-    with col2:
+    col1, col2, col3, col4 = st.columns(4)
 
-        st.write("### Curva ROC")
+    col1.metric(
+        "Reservas Totales",
+        total
+    )
 
-        fpr = [0, 0.05, 0.1, 0.2, 1]
-        tpr = [0, 0.75, 0.84, 0.92, 1]
+    col2.metric(
+        "Cancelaciones Predichas",
+        cancelaciones
+    )
 
-        fig2, ax2 = plt.subplots(figsize=(6,5))
+    col3.metric(
+        "Riesgo Promedio",
+        f"{riesgo_prom:.2%}"
+    )
 
-        ax2.plot(
-            fpr,
-            tpr,
-            linewidth=3,
-            label="AUC = 0.936"
-        )
+    col4.metric(
+        "% Riesgo Alto",
+        f"{pct_alto:.1f}%"
+    )
 
-        ax2.plot(
-            [0,1],
-            [0,1],
-            "--"
-        )
+    st.divider()
 
-        ax2.set_xlabel("False Positive Rate")
-        ax2.set_ylabel("True Positive Rate")
-
-        ax2.legend()
-
-        st.pyplot(fig2)
-
-    # =====================================================
-    # EXPLICACIÓN
-    # =====================================================
-
-    st.info("""
-    El modelo tiene alta capacidad de discriminación
-    entre reservas que cancelan y no cancelan.
+    st.success(f"""
+    El modelo detectó que el
+    {pct_alto:.1f}% de las reservas
+    presenta alto riesgo de cancelación.
     """)
 
+    # =====================================================
+    # RIESGO POR HOTEL
+    # =====================================================
+
+    if "hotel" in results.columns:
+
+        riesgo_hotel = (
+            results.groupby("hotel")[
+                "Probabilidad"
+            ]
+            .mean()
+            .sort_values(
+                ascending=False
+            )
+            .reset_index()
+        )
+
+        fig_hotel = px.bar(
+            riesgo_hotel,
+            x="hotel",
+            y="Probabilidad",
+            title="Riesgo promedio por hotel"
+        )
+
+        st.plotly_chart(
+            fig_hotel,
+            width="stretch"
+        )
+
+    # =====================================================
+    # RIESGO POR SEGMENTO
+    # =====================================================
+
+    if "market_segment" in results.columns:
+
+        riesgo_segmento = (
+            results.groupby(
+                "market_segment"
+            )["Probabilidad"]
+            .mean()
+            .sort_values(
+                ascending=False
+            )
+            .reset_index()
+        )
+
+        fig_seg = px.bar(
+            riesgo_segmento,
+            x="market_segment",
+            y="Probabilidad",
+            title="Riesgo promedio por segmento"
+        )
+
+        st.plotly_chart(
+            fig_seg,
+            width="stretch"
+        )
+
+    # =====================================================
+    # DISTRIBUCIÓN
+    # =====================================================
+
+    fig_dist = px.histogram(
+        results,
+        x="Probabilidad",
+        nbins=30,
+        title="Distribución de probabilidades"
+    )
+
+    st.plotly_chart(
+        fig_dist,
+        width="stretch"
+    )
+
 # =========================================================
-# TAB 2 — PREDICCIONES
+# TAB 2 — PERFORMANCE ML
 # =========================================================
 
 with tab2:
 
-    st.subheader("Simulador de Predicciones")
-
-    uploaded = st.file_uploader(
-        "Sube un archivo CSV",
-        type="csv"
+    st.subheader(
+        "Performance del Modelo"
     )
 
-    if uploaded:
+    if y_eval is not None:
 
-        try:
+        accuracy = accuracy_score(
+            y_eval,
+            y_pred
+        )
 
-            # =================================================
-            # LEER CSV
-            # =================================================
+        recall = recall_score(
+            y_eval,
+            y_pred
+        )
 
-            df = pd.read_csv(uploaded)
+        f1 = f1_score(
+            y_eval,
+            y_pred
+        )
 
-            st.success(
-                "Dataset cargado correctamente"
-            )
+        auc = roc_auc_score(
+            y_eval,
+            y_proba
+        )
 
-            # =================================================
-            # PREVIEW
-            # =================================================
+        # =================================================
+        # KPIS
+        # =================================================
 
-            with st.expander(
-                "Vista previa del dataset"
-            ):
+        col1, col2, col3, col4 = st.columns(4)
 
-                st.dataframe(
-                    df.head()
-                )
+        col1.metric(
+            "Accuracy",
+            f"{accuracy:.2%}"
+        )
 
-            # =================================================
-            # PREDICCIONES
-            # =================================================
+        col2.metric(
+            "Recall",
+            f"{recall:.2%}"
+        )
 
-            proba = model.predict_proba(df)[:,1]
+        col3.metric(
+            "F1 Score",
+            f"{f1:.2%}"
+        )
 
-            preds = (
-                proba >= threshold
-            ).astype(int)
+        col4.metric(
+            "AUC ROC",
+            f"{auc:.2%}"
+        )
 
-            # =================================================
-            # RESULTS
-            # =================================================
+        st.divider()
 
-            results = pd.DataFrame()
+        # =================================================
+        # MATRIZ + ROC
+        # =================================================
 
-            results["Probabilidad"] = np.round(
-                proba,
-                3
-            )
+        col1, col2 = st.columns(2)
 
-            results["Predicción"] = np.where(
-                preds == 1,
-                "Cancelará",
-                "No cancelará"
-            )
+        # =================================================
+        # MATRIZ
+        # =================================================
 
-            # =================================================
-            # RIESGO
-            # =================================================
-
-            def riesgo(p):
-
-                if p > 0.7:
-                    return "🔴 Alto"
-
-                elif p > 0.4:
-                    return "🟡 Medio"
-
-                else:
-                    return "🟢 Bajo"
-
-            results["Nivel de Riesgo"] = results[
-                "Probabilidad"
-            ].apply(riesgo)
-
-            # =================================================
-            # KPIS
-            # =================================================
-
-            st.subheader(
-                "Resumen de Predicciones"
-            )
-
-            col1, col2, col3 = st.columns(3)
-
-            col1.metric(
-                "Reservas",
-                len(results)
-            )
-
-            col2.metric(
-                "Cancelaciones Predichas",
-                int((preds == 1).sum())
-            )
-
-            col3.metric(
-                "Riesgo Promedio",
-                f"{proba.mean():.2%}"
-            )
-
-            # =================================================
-            # GRÁFICO
-            # =================================================
+        with col1:
 
             st.write(
-                "### Distribución del Riesgo"
+                "### Matriz de Confusión"
             )
 
-            fig3, ax3 = plt.subplots(
-                figsize=(8,4)
+            cm = confusion_matrix(
+                y_eval,
+                y_pred
             )
 
-            ax3.hist(
-                proba,
-                bins=20
+            fig, ax = plt.subplots(
+                figsize=(6,5)
             )
 
-            ax3.set_xlabel(
-                "Probabilidad de Cancelación"
+            sns.heatmap(
+                cm,
+                annot=True,
+                fmt="d",
+                cmap="Blues",
+                cbar=False,
+                ax=ax
             )
 
-            ax3.set_ylabel(
-                "Cantidad"
+            ax.set_xlabel(
+                "Predicción"
             )
 
-            st.pyplot(fig3)
-
-            # =================================================
-            # FILTRO
-            # =================================================
-
-            st.subheader(
-                "Resultados de Predicción"
+            ax.set_ylabel(
+                "Real"
             )
 
-            filtro = st.selectbox(
-                "Filtrar resultados",
-                [
-                    "Todas",
-                    "Cancelará",
-                    "No cancelará"
-                ]
+            st.pyplot(fig)
+
+        # =================================================
+        # ROC
+        # =================================================
+
+        with col2:
+
+            st.write(
+                "### Curva ROC"
             )
 
-            if filtro == "Cancelará":
-
-                filtered_results = results[
-                    results["Predicción"] == "Cancelará"
-                ]
-
-            elif filtro == "No cancelará":
-
-                filtered_results = results[
-                    results["Predicción"] == "No cancelará"
-                ]
-
-            else:
-
-                filtered_results = results
-
-            # =================================================
-            # TABLA
-            # =================================================
-
-            st.dataframe(
-                filtered_results,
-                use_container_width=True
+            fpr, tpr, _ = roc_curve(
+                y_eval,
+                y_proba
             )
 
-            # =================================================
-            # DESCARGA
-            # =================================================
-
-            csv = filtered_results.to_csv(
-                index=False
-            ).encode("utf-8")
-
-            st.download_button(
-                label="📥 Descargar Resultados",
-                data=csv,
-                file_name="predicciones_filtradas.csv",
-                mime="text/csv"
+            fig2, ax2 = plt.subplots(
+                figsize=(6,5)
             )
 
-        except Exception as e:
-
-            st.error(
-                f"Error procesando archivo: {e}"
+            ax2.plot(
+                fpr,
+                tpr,
+                linewidth=3,
+                label=f"AUC = {auc:.3f}"
             )
+
+            ax2.plot(
+                [0,1],
+                [0,1],
+                "--"
+            )
+
+            ax2.legend()
+
+            st.pyplot(fig2)
+
+    else:
+
+        st.info("""
+        El dataset no contiene la
+        variable objetivo
+        'is_canceled'.
+        """)
 
 # =========================================================
-# TAB 3 — SHAP
+# TAB 3 — PREDICCIONES
 # =========================================================
 
 with tab3:
+
+    st.subheader(
+        "Simulador de Predicciones"
+    )
+
+    filtro = st.selectbox(
+        "Filtrar resultados",
+        [
+            "Todos",
+            "Cancelará",
+            "No cancelará"
+        ]
+    )
+
+    results_filtered = results.copy()
+
+    if filtro != "Todos":
+
+        results_filtered = results_filtered[
+            results_filtered[
+                "Predicción"
+            ] == filtro
+        ]
+
+    # =====================================================
+    # KPIS
+    # =====================================================
+
+    col1, col2, col3 = st.columns(3)
+
+    col1.metric(
+        "Reservas",
+        len(results_filtered)
+    )
+
+    col2.metric(
+        "Cancelaciones Predichas",
+        int(
+            (
+                results_filtered[
+                    "Predicción"
+                ]
+                ==
+                "Cancelará"
+            ).sum()
+        )
+    )
+
+    col3.metric(
+        "Riesgo Promedio",
+        f"{results_filtered['Probabilidad'].mean():.2%}"
+    )
+
+    st.divider()
+
+    # =====================================================
+    # TOP RIESGO
+    # =====================================================
+
+    st.write(
+        "### Reservas críticas"
+    )
+
+    top_riesgo = results_filtered.sort_values(
+        "Probabilidad",
+        ascending=False
+    ).head(10)
+
+    st.dataframe(
+        top_riesgo,
+        width="stretch"
+    )
+
+    st.divider()
+
+    # =====================================================
+    # RESULTADOS
+    # =====================================================
+
+    st.write(
+        "### Resultados completos"
+    )
+
+    st.dataframe(
+        results_filtered.head(100),
+        width="stretch"
+    )
+
+    # =====================================================
+    # DESCARGA
+    # =====================================================
+
+    csv = results_filtered.to_csv(
+        index=False
+    ).encode("utf-8")
+
+    st.download_button(
+        label="📥 Descargar resultados",
+        data=csv,
+        file_name="predicciones.csv",
+        mime="text/csv"
+    )
+
+# =========================================================
+# TAB 4 — SHAP
+# =========================================================
+
+with tab4:
 
     st.subheader(
         "Explainability con SHAP"
     )
 
     st.write("""
-    SHAP permite entender por qué el modelo
-    predice cancelación para una reserva específica.
+    SHAP permite interpretar cómo
+    cada variable impacta en las
+    predicciones del modelo.
     """)
 
-    st.image(
-        "dashboard/assets/shap_summary.png",
-        caption="SHAP Summary Plot",
-        use_container_width=True
+    # =====================================================
+    # COMPONENTES PIPELINE
+    # =====================================================
+
+    preprocessor = model.named_steps[
+        "preprocessor"
+    ]
+
+    clf = model.named_steps[
+        "clf"
+    ]
+
+    # =====================================================
+    # TRANSFORMAR
+    # =====================================================
+
+    X_transformed = preprocessor.transform(
+        X_eval
     )
 
+    # =====================================================
+    # FEATURE NAMES
+    # =====================================================
+
+    feature_names = (
+        preprocessor.get_feature_names_out()
+    )
+
+    feature_names = [
+        col.replace("num__", "")
+           .replace("cat__", "")
+        for col in feature_names
+    ]
+
+    X_transformed_df = pd.DataFrame(
+        X_transformed,
+        columns=feature_names
+    )
+
+    # =====================================================
+    # SAMPLE
+    # =====================================================
+
+    sample_shap = X_transformed_df.sample(
+        min(300, len(X_transformed_df)),
+        random_state=42
+    )
+
+    # =====================================================
+    # SHAP VALUES
+    # =====================================================
+
+    explainer = shap.TreeExplainer(
+        clf
+    )
+
+    shap_values = explainer.shap_values(
+        sample_shap
+    )
+
+    # =====================================================
+    # SUMMARY PLOT
+    # =====================================================
+
+    fig_shap, ax = plt.subplots(
+        figsize=(12,8)
+    )
+
+    shap.summary_plot(
+        shap_values,
+        sample_shap,
+        show=False
+    )
+
+    st.pyplot(fig_shap)
+
     st.info("""
-    Variables como depósito no reembolsable,
-    lead time y cancelaciones previas tienen
-    fuerte impacto en la predicción.
+    Las variables ubicadas arriba
+    son las más influyentes para
+    el modelo.
     """)
