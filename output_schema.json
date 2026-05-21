@@ -1,0 +1,11 @@
+{
+    "type": "object",
+    "properties": {
+        "prediction": {
+            "type": "number"
+        },
+        "probability": {
+            "type": "number"
+        }
+    }
+}

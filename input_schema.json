@@ -1,0 +1,194 @@
+    "type": "object",
+    "properties": "columna":	tipo
+1	arrival_date_year: {
+        "type": "integer"
+    }
+2	arrival_date_week_number: {
+        "type": "integer"
+    }
+3	arrival_date_day_of_month: {
+        "type": "integer"
+    }
+4	is_repeated_guest: {
+        "type": "integer"
+    }
+5	previous_cancellations: {
+        "type": "integer"
+    }
+6	previous_bookings_not_canceled: {
+        "type": "integer"
+    }
+7	booking_changes: {
+        "type": "integer"
+    }
+8	days_in_waiting_list: {
+        "type": "integer"
+    }
+9	required_car_parking_spaces: {
+        "type": "integer"
+    }
+10	total_of_special_requests: {
+        "type": "integer"
+    }
+11	total_nights: {
+        "type": "integer"
+    }
+12	total_guests: {
+        "type": "integer"
+    }
+13	is_high_season: {
+        "type": "integer"
+    }
+14	adr_log: {
+        "type": "float"
+    }
+15	lead_time_log: {
+        "type": "float"
+    }
+16	hotel_Resort Hotel: {
+        "type": "boolean"
+    }
+17	arrival_date_month_August: {
+        "type": "boolean"
+    }
+18	arrival_date_month_December: {
+        "type": "boolean"
+    }
+19	arrival_date_month_February: {
+        "type": "boolean"
+    }
+20	arrival_date_month_January: {
+        "type": "boolean"
+    }
+21	arrival_date_month_July: {
+        "type": "boolean"
+    }
+22	arrival_date_month_June: {
+        "type": "boolean"
+    }
+23	arrival_date_month_March: {
+        "type": "boolean"
+    }
+24	arrival_date_month_May: {
+        "type": "boolean"
+    }
+25	arrival_date_month_November: {
+        "type": "boolean"
+    }
+26	arrival_date_month_October: {
+        "type": "boolean"
+    }
+27	arrival_date_month_September: {
+        "type": "boolean"
+    }
+28	meal_FB: {
+        "type": "boolean"
+    }
+29	meal_HB: {
+        "type": "boolean"
+    }
+30	meal_SC: {
+        "type": "boolean"
+    }
+31	meal_Undefined: {
+        "type": "boolean"
+    }
+32	market_segment_Complementary: {
+        "type": "boolean"
+    }
+33	market_segment_Corporate: {
+        "type": "boolean"
+    }
+34	market_segment_Direct: {
+        "type": "boolean"
+    }
+35	market_segment_Groups: {
+        "type": "boolean"
+    }
+36	market_segment_Offline TA/TO: {
+        "type": "boolean"
+    }
+37	market_segment_Online TA: {
+        "type": "boolean"
+    }
+38	distribution_channel_Direct: {
+        "type": "boolean"
+    }
+39	distribution_channel_GDS: {
+        "type": "boolean"
+    }
+40	distribution_channel_TA/TO: {
+        "type": "boolean"
+    }
+41	distribution_channel_Undefined: {
+        "type": "boolean"
+    }
+42	deposit_type_Non Refund: {
+        "type": "boolean"
+    }
+43	deposit_type_Refundable: {
+        "type": "boolean"
+    }
+44	customer_type_Group: {
+        "type": "boolean"
+    }
+45	customer_type_Transient: {
+        "type": "boolean"
+    }
+46	customer_type_Transient-Party: {
+        "type": "boolean"
+    }
+47	reserved_room_type_B: {
+        "type": "boolean"
+    }
+48	reserved_room_type_C: {
+        "type": "boolean"
+    }
+49	reserved_room_type_D: {
+        "type": "boolean"
+    }
+50	reserved_room_type_E: {
+        "type": "boolean"
+    }
+51	reserved_room_type_F: {
+        "type": "boolean"
+    }
+52	reserved_room_type_G: {
+        "type": "boolean"
+    }
+53	reserved_room_type_H: {
+        "type": "boolean"
+    }
+54	reserved_room_type_L: {
+        "type": "boolean"
+    }
+55	assigned_room_type_B: {
+        "type": "boolean"
+    }
+56	assigned_room_type_C: {
+        "type": "boolean"
+    }
+57	assigned_room_type_D: {
+        "type": "boolean"
+    }
+58	assigned_room_type_E: {
+        "type": "boolean"
+    }
+59	assigned_room_type_F: {
+        "type": "boolean"
+    }
+60	assigned_room_type_G: {
+        "type": "boolean"
+    }
+61	assigned_room_type_H: {
+        "type": "boolean"
+    }
+62	assigned_room_type_I: {
+        "type": "boolean"
+    }
+63	assigned_room_type_K: {
+        "type": "boolean"
+    }
+64	assigned_room_type_L: {
+        "type": "boolean"
+    }
