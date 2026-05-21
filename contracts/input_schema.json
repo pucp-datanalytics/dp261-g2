@@ -1,0 +1,127 @@
+{
+  "type": "object",
+  "title": "RawPredictionRequest",
+  "description": "Schema de entrada para generar predicciones de cancelación hotelera.",
+  "properties": {
+    "hotel": {
+      "type": "string",
+      "enum": ["Resort Hotel", "City Hotel"]
+    },
+    "lead_time": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "arrival_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha de llegada en formato YYYY-MM-DD."
+    },
+    "stays_in_weekend_nights": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "stays_in_week_nights": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "adults": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "children": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "babies": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "meal": {
+      "type": "string",
+      "enum": ["BB", "FB", "HB", "SC", "Undefined"]
+    },
+    "market_segment": {
+      "type": "string",
+      "enum": ["Direct", "Corporate", "Online TA", "Offline TA/TO", "Groups", "Complementary"]
+    },
+    "distribution_channel": {
+      "type": "string",
+      "enum": ["Direct", "TA/TO", "Corporate", "GDS", "Undefined"]
+    },
+    "is_repeated_guest": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "previous_cancellations": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "previous_bookings_not_canceled": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "reserved_room_type": {
+      "type": "string",
+      "enum": ["A", "B", "C", "D", "E", "F", "G", "H", "L"]
+    },
+    "assigned_room_type": {
+      "type": "string",
+      "enum": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "K", "L"]
+    },
+    "booking_changes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "deposit_type": {
+      "type": "string",
+      "enum": ["No Deposit", "Non Refund", "Refundable"]
+    },
+    "days_in_waiting_list": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "customer_type": {
+      "type": "string",
+      "enum": ["Contract", "Group", "Transient", "Transient-Party"]
+    },
+    "adr": {
+      "type": "number",
+      "minimum": 0
+    },
+    "required_car_parking_spaces": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "total_of_special_requests": {
+      "type": "integer",
+      "minimum": 0
+    }
+  },
+  "required": [
+    "hotel",
+    "lead_time",
+    "arrival_date",
+    "stays_in_weekend_nights",
+    "stays_in_week_nights",
+    "adults",
+    "children",
+    "babies",
+    "meal",
+    "market_segment",
+    "distribution_channel",
+    "is_repeated_guest",
+    "previous_cancellations",
+    "previous_bookings_not_canceled",
+    "reserved_room_type",
+    "assigned_room_type",
+    "booking_changes",
+    "deposit_type",
+    "days_in_waiting_list",
+    "customer_type",
+    "adr",
+    "required_car_parking_spaces",
+    "total_of_special_requests"
+  ],
+  "additionalProperties": false
+}
