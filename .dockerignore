@@ -1,0 +1,29 @@
+# Git / DVC
+.git
+.dvc
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.ipynb_checkpoints/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Large project folders not needed for API image
+data/
+notebooks/
+reports/
+dashboard/
+
+# Ignore all models except the one needed by the API
+models/*
+!models/final_pipeline.pkl
+
+# Environment and local config
+.env
+.env.*
