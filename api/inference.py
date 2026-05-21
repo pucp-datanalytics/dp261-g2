@@ -88,13 +88,18 @@ def build_pipeline_input(payload: Dict[str, Any]) -> pd.DataFrame:
     total_guests = adults + children + babies
 
     if total_guests <= 0:
-        raise ValueError("A booking must have at least one guest.")
+        raise ValueError(
+            "La reserva debe tener al menos un huésped. "
+            "La suma adults + children + babies debe ser mayor a 0."
+        )
 
     if children == 10:
-        raise ValueError("children=10 was considered invalid in the training pipeline.")
+        raise ValueError(
+            "El valor children=10 fue considerado inválido durante el pipeline de entrenamiento."
+        )
 
     if adr < 0:
-        raise ValueError("adr cannot be negative.")
+        raise ValueError("La variable adr no puede ser negativa.")
 
     adr = min(adr, ADR_CAP)
 
@@ -144,20 +149,20 @@ def build_pipeline_input(payload: Dict[str, Any]) -> pd.DataFrame:
 # ============================================================
 
 def get_risk_level(probability: float) -> str:
-    """Convert cancellation probability into a business-friendly risk level."""
+    """Convierte la probabilidad de cancelación en un nivel de riesgo."""
     if probability >= 0.70:
-        return "high"
+        return "alto"
     if probability >= 0.40:
-        return "medium"
-    return "low"
+        return "medio"
+    return "bajo"
 
 
 def get_recommendation(risk_level: str) -> str:
-    """Return a business-friendly recommendation."""
+    """Devuelve una recomendación de negocio en español."""
     recommendations = {
-        "high": "Priorizar contacto preventivo con el cliente.",
-        "medium": "Monitorear la reserva y considerar una acción preventiva ligera.",
-        "low": "No se requiere acción urgente.",
+        "alto": "Priorizar contacto preventivo con el cliente.",
+        "medio": "Monitorear la reserva y considerar una acción preventiva ligera.",
+        "bajo": "No se requiere acción urgente.",
     }
     return recommendations[risk_level]
 
