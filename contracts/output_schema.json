@@ -1,0 +1,34 @@
+{
+  "type": "object",
+  "title": "PredictionResponse",
+  "description": "Schema de salida para la predicción de cancelación hotelera.",
+  "properties": {
+    "prediction": {
+      "type": "integer",
+      "enum": [0, 1],
+      "description": "0 = probablemente no cancela, 1 = posible cancelación."
+    },
+    "probability": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Probabilidad estimada de cancelación."
+    },
+    "risk_level": {
+      "type": "string",
+      "enum": ["bajo", "medio", "alto"],
+      "description": "Nivel de riesgo de cancelación."
+    },
+    "recommendation": {
+      "type": "string",
+      "description": "Recomendación de negocio para el usuario."
+    }
+  },
+  "required": [
+    "prediction",
+    "probability",
+    "risk_level",
+    "recommendation"
+  ],
+  "additionalProperties": false
+}
