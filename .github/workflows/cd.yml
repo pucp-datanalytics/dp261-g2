@@ -1,0 +1,38 @@
+name: CD - Deploy MVP
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build Docker image
+        run: |
+          docker build -t hotel-api -f api/Dockerfile .
+
+      - name: Tag Docker image
+        run: |
+          docker tag hotel-api:latest 991625427358.dkr.ecr.us-east-1.amazonaws.com/hotel-api:latest
+
+      - name: Push image to ECR
+        run: |
+          docker push 991625427358.dkr.ecr.us-east-1.amazonaws.com/hotel-api:latest
