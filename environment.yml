@@ -1,6 +1,8 @@
 name: dp261-g2
+
 channels:
   - conda-forge
+
 dependencies:
   - python=3.12
   - pandas
@@ -12,6 +14,7 @@ dependencies:
   - ipykernel
   - plotly
   - pip
+
   - pip:
       - dvc
       - streamlit
