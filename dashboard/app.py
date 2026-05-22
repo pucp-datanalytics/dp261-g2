@@ -1,14 +1,16 @@
+# =========================================================
+# HOTEL CANCELLATION INTELLIGENCE PLATFORM
+# =========================================================
+
 import streamlit as st
 import pandas as pd
 import numpy as np
+
 import matplotlib.pyplot as plt
-import seaborn as sns
 import plotly.express as px
+import plotly.graph_objects as go
 
 import joblib
-import requests
-import os
-
 import shap
 
 from pathlib import Path
@@ -23,16 +25,17 @@ from sklearn.metrics import (
 )
 
 # =========================================================
-# CONFIGURACIÓN
+# CONFIG
 # =========================================================
 
 st.set_page_config(
-    page_title="Dashboard de cancelaciones hoteleras",
-    layout="wide"
+    page_title="Hotel Cancellation Intelligence",
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
 # =========================================================
-# ESTILOS
+# CUSTOM CSS
 # =========================================================
 
 st.markdown("""
@@ -51,11 +54,34 @@ h1, h2, h3, h4 {
     background-color: #1E1E2F;
 }
 
+.kpi-card {
+    background-color: #1C2333;
+    padding: 20px;
+    border-radius: 18px;
+    text-align: center;
+    border: 1px solid #2A3447;
+}
+
+.kpi-title {
+    font-size: 15px;
+    color: #9CA3AF;
+}
+
+.kpi-value {
+    font-size: 34px;
+    font-weight: bold;
+    color: white;
+}
+
+.block-container {
+    padding-top: 2rem;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
 # =========================================================
-# RUTA DEL MODELO
+# MODEL
 # =========================================================
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -65,6 +91,13 @@ MODEL_PATH = (
     / "models"
     / "final_pipeline.pkl"
 )
+
+@st.cache_resource
+def load_model():
+
+    return joblib.load(MODEL_PATH)
+
+model = load_model()
 
 # =========================================================
 # CLEANING
@@ -88,38 +121,23 @@ def clean_data(df):
         errors="ignore"
     )
 
-    mask_people = (
-        (df["adults"] == 0)
-        &
-        (df["children"].fillna(0) == 0)
-        &
-        (df["babies"] == 0)
-    )
+    if "children" in df.columns:
 
-    df = df[~mask_people]
+        df["children"] = (
+            df["children"]
+            .fillna(0)
+            .astype(int)
+        )
 
-    df.dropna(
-        subset=["children"],
-        inplace=True
-    )
+    if "adr" in df.columns:
 
-    df["children"] = df[
-        "children"
-    ].astype(int)
+        df = df[df["adr"] >= 0]
 
-    df = df[
-        df["children"] != 10
-    ]
+        p99 = df["adr"].quantile(0.99)
 
-    df = df[
-        df["adr"] >= 0
-    ]
-
-    p99 = df["adr"].quantile(0.99)
-
-    df["adr"] = df[
-        "adr"
-    ].clip(upper=p99)
+        df["adr"] = df["adr"].clip(
+            upper=p99
+        )
 
     return df
 
@@ -131,19 +149,11 @@ def feature_engineering(df):
 
     df = df.copy()
 
-    # =====================================================
-    # TOTAL NIGHTS
-    # =====================================================
-
     df["total_nights"] = (
         df["stays_in_week_nights"]
         +
         df["stays_in_weekend_nights"]
     )
-
-    # =====================================================
-    # TOTAL GUESTS
-    # =====================================================
 
     df["total_guests"] = (
         df["adults"]
@@ -152,10 +162,6 @@ def feature_engineering(df):
         +
         df["babies"]
     )
-
-    # =====================================================
-    # HIGH SEASON
-    # =====================================================
 
     high_season = [
         "July",
@@ -168,13 +174,7 @@ def feature_engineering(df):
         .astype(int)
     )
 
-    # =====================================================
-    # LOG TRANSFORMS
-    # =====================================================
-
-    df["adr_log"] = np.log1p(
-        df["adr"]
-    )
+    df["adr_log"] = np.log1p(df["adr"])
 
     df["lead_time_log"] = np.log1p(
         df["lead_time"]
@@ -183,34 +183,11 @@ def feature_engineering(df):
     return df
 
 # =========================================================
-# CONFIGURACIÓN API
-# =========================================================
-
-API_URL = os.getenv("API_URL", "http://13.217.146.193:8000")
-
-# Mantenemos el modelo local como fallback
-@st.cache_resource
-def load_model():
-    try:
-        return joblib.load(MODEL_PATH)
-    except Exception:
-        return None
-
-model = load_model()
-
-def api_disponible():
-    try:
-        r = requests.get(f"{API_URL}/health", timeout=5)
-        return r.status_code == 200
-    except Exception:
-        return False
-
-# =========================================================
 # SIDEBAR
 # =========================================================
 
 st.sidebar.title(
-    "Panel de Control"
+    "⚙️ Panel de Control"
 )
 
 threshold = st.sidebar.slider(
@@ -234,88 +211,372 @@ Threshold altos:
 ↑ Precision
 """)
 
+st.sidebar.warning(
+    "⚠️ Usando modelo local"
+)
+
 # =========================================================
 # HEADER
 # =========================================================
 
-st.title(
-    "Dashboard de cancelaciones hoteleras"
-)
+st.markdown("""
+# 🏨 Dashboard de cancelaciones hoteleras
 
-st.write("""
-Sistema interactivo de predicción
-de cancelaciones hoteleras basado
-en Machine Learning.
+Sistema inteligente de predicción de cancelaciones hoteleras
+para revenue management y toma de decisiones estratégicas.
 """)
 
 st.divider()
 
 # =========================================================
-# CARGAR DATASET
+# MODE SELECTION
 # =========================================================
 
-uploaded = st.file_uploader(
-    "📂 Suba un archivo CSV",
-    type="csv"
+modo = st.radio(
+    "Seleccione modo de uso",
+    [
+        "📂 Predicción Masiva",
+        "🧾 Simulación Manual"
+    ],
+    horizontal=True
 )
 
-if uploaded is None:
+# =========================================================
+# MASSIVE PREDICTION
+# =========================================================
 
-    st.warning(
-        "Suba un dataset para comenzar."
+if modo == "📂 Predicción Masiva":
+
+    uploaded = st.file_uploader(
+        "📂 Suba un archivo",
+        type=["csv", "xlsx", "xls"]
     )
 
-    st.stop()
+    if uploaded is None:
 
-# =========================================================
-# LEER DATASET
-# =========================================================
+        st.warning(
+            "Suba un dataset para comenzar."
+        )
 
-df_eval = pd.read_csv(
-    uploaded
-)
+        st.stop()
 
-st.success(
-    "Dataset cargado correctamente"
-)
+    if uploaded.name.endswith(".csv"):
 
-# =========================================================
-# PREVIEW
-# =========================================================
+        df_eval = pd.read_csv(uploaded)
 
-with st.expander(
-    "Vista previa del dataset"
-):
+    else:
 
-    st.dataframe(
-        df_eval.head(),
-        width="stretch"
+        df_eval = pd.read_excel(uploaded)
+
+    st.success(
+        "✅ Dataset cargado correctamente"
     )
 
-# =========================================================
-# GUARDAR ORIGINAL
-# =========================================================
+    with st.expander(
+        "📄 Vista previa del dataset"
+    ):
 
-df_original = df_eval.copy()
-
-# =========================================================
-# CLEANING
-# =========================================================
-
-df_eval = clean_data(
-    df_eval
-)
+        st.dataframe(
+            df_eval.head(),
+            width="stretch"
+        )
 
 # =========================================================
-# FEATURE ENGINEERING
+# MANUAL SIMULATION
 # =========================================================
 
-df_eval = feature_engineering(
-    df_eval
-)
+else:
+
+    st.subheader(
+        "🧾 Simulación manual de reserva"
+    )
+
+    with st.form("manual_form"):
+
+        col1, col2, col3 = st.columns(3)
+
+        # =====================================================
+        # RESERVA
+        # =====================================================
+
+        with col1:
+
+            st.markdown("## 🏨 Reserva")
+
+            hotel = st.selectbox(
+                "🏨 Hotel",
+                [
+                    "Resort Hotel",
+                    "City Hotel"
+                ]
+            )
+
+            lead_time = st.slider(
+                "⏳ Lead Time",
+                0,
+                700,
+                120
+            )
+
+            adr = st.number_input(
+                "💰 ADR",
+                0.0,
+                1000.0,
+                120.0
+            )
+
+            month = st.selectbox(
+                "📅 Mes llegada",
+                [
+                    "January","February","March",
+                    "April","May","June",
+                    "July","August","September",
+                    "October","November","December"
+                ]
+            )
+
+            arrival_week = st.slider(
+                "🗓️ Semana llegada",
+                1,
+                53,
+                30
+            )
+
+            arrival_day = st.slider(
+                "📍 Día llegada",
+                1,
+                31,
+                15
+            )
+
+            week_nights = st.slider(
+                "🌙 Noches entre semana",
+                0,
+                20,
+                2
+            )
+
+            weekend_nights = st.slider(
+                "🎉 Noches fin semana",
+                0,
+                10,
+                1
+            )
+
+            reserved_room_type = st.selectbox(
+                "🛏️ Habitación reservada",
+                ["A","B","C","D","E","F","G"]
+            )
+
+            assigned_room_type = st.selectbox(
+                "🔑 Habitación asignada",
+                ["A","B","C","D","E","F","G"]
+            )
+
+        # =====================================================
+        # CLIENTE
+        # =====================================================
+
+        with col2:
+
+            st.markdown("## 👤 Cliente")
+
+            adults = st.slider(
+                "🧑 Adultos",
+                1,
+                5,
+                2
+            )
+
+            children = st.slider(
+                "🧒 Niños",
+                0,
+                4,
+                0
+            )
+
+            babies = st.slider(
+                "👶 Bebés",
+                0,
+                2,
+                0
+            )
+
+            is_repeated_guest = st.selectbox(
+                "🔁 Cliente recurrente",
+                [0,1]
+            )
+
+            previous_cancellations = st.slider(
+                "❌ Cancelaciones previas",
+                0,
+                10,
+                0
+            )
+
+            previous_bookings_not_canceled = st.slider(
+                "✅ Reservas previas no canceladas",
+                0,
+                50,
+                0
+            )
+
+            customer_type = st.selectbox(
+                "🪪 Tipo cliente",
+                [
+                    "Transient",
+                    "Contract",
+                    "Transient-Party",
+                    "Group"
+                ]
+            )
+
+            parking_spaces = st.slider(
+                "🚗 Parking requerido",
+                0,
+                5,
+                0
+            )
+
+        # =====================================================
+        # COMERCIAL
+        # =====================================================
+
+        with col3:
+
+            st.markdown("## 💼 Comercial")
+
+            market_segment = st.selectbox(
+                "📊 Segmento",
+                [
+                    "Online TA",
+                    "Offline TA/TO",
+                    "Direct",
+                    "Groups",
+                    "Corporate"
+                ]
+            )
+
+            distribution_channel = st.selectbox(
+                "🌐 Canal distribución",
+                [
+                    "TA/TO",
+                    "Direct",
+                    "Corporate",
+                    "GDS"
+                ]
+            )
+
+            deposit_type = st.selectbox(
+                "💳 Depósito",
+                [
+                    "No Deposit",
+                    "Refundable",
+                    "Non Refund"
+                ]
+            )
+
+            special_requests = st.slider(
+                "⭐ Solicitudes especiales",
+                0,
+                5,
+                1
+            )
+
+            booking_changes = st.slider(
+                "🔄 Cambios de reserva",
+                0,
+                10,
+                0
+            )
+
+            waiting_list = st.slider(
+                "⏱️ Waiting list",
+                0,
+                400,
+                0
+            )
+
+        submitted = st.form_submit_button(
+            "🔍 Predecir cancelación"
+        )
+
+    if not submitted:
+
+        st.stop()
+
+    # =====================================================
+    # DATAFRAME MANUAL
+    # =====================================================
+
+    df_eval = pd.DataFrame([{
+
+        "hotel": hotel,
+        "lead_time": lead_time,
+        "arrival_date_year": 2017,
+        "arrival_date_month": month,
+        "arrival_date_week_number": arrival_week,
+        "arrival_date_day_of_month": arrival_day,
+
+        "stays_in_weekend_nights": weekend_nights,
+        "stays_in_week_nights": week_nights,
+
+        "adults": adults,
+        "children": children,
+        "babies": babies,
+
+        # EL MODELO NECESITA ESTA VARIABLE
+        "meal": "BB",
+
+        "market_segment": market_segment,
+        "distribution_channel": distribution_channel,
+
+        "is_repeated_guest": is_repeated_guest,
+
+        "previous_cancellations":
+            previous_cancellations,
+
+        "previous_bookings_not_canceled":
+            previous_bookings_not_canceled,
+
+        "reserved_room_type":
+            reserved_room_type,
+
+        "assigned_room_type":
+            assigned_room_type,
+
+        "booking_changes":
+            booking_changes,
+
+        "deposit_type":
+            deposit_type,
+
+        "days_in_waiting_list":
+            waiting_list,
+
+        "customer_type":
+            customer_type,
+
+        "adr": adr,
+
+        "required_car_parking_spaces":
+            parking_spaces,
+
+        "total_of_special_requests":
+            special_requests
+
+    }])
 
 # =========================================================
-# DEFINIR X / Y
+# PROCESSING
+# =========================================================
+
+df_eval = clean_data(df_eval)
+
+df_eval = feature_engineering(df_eval)
+
+# =========================================================
+# X / Y
 # =========================================================
 
 if "is_canceled" in df_eval.columns:
@@ -325,9 +586,7 @@ if "is_canceled" in df_eval.columns:
         axis=1
     )
 
-    y_eval = df_eval[
-        "is_canceled"
-    ]
+    y_eval = df_eval["is_canceled"]
 
 else:
 
@@ -336,91 +595,19 @@ else:
     y_eval = None
 
 # =========================================================
-# PREDICCIONES
+# PREDICTIONS
 # =========================================================
 
-def predecir_con_api(df_input):
-    """Llama a la API fila por fila y retorna array de probabilidades."""
-    probabilidades = []
-    
-    progress = st.progress(0)
-    total = len(df_input)
-    
-    for i, (_, row) in enumerate(df_input.iterrows()):
-        try:
-            # Reconstruir fecha desde columnas separadas
-            mes_map = {
-                "January":1,"February":2,"March":3,"April":4,
-                "May":5,"June":6,"July":7,"August":8,
-                "September":9,"October":10,"November":11,"December":12
-            }
-            mes_num = mes_map.get(
-                str(row.get("arrival_date_month","January")), 1
-            )
-            arrival_date = (
-                f"{int(row.get('arrival_date_year', 2017))}-"
-                f"{mes_num:02d}-"
-                f"{int(row.get('arrival_date_day_of_month', 1)):02d}"
-            )
+y_proba = model.predict_proba(
+    X_eval
+)[:,1]
 
-            payload = {
-                "hotel": str(row.get("hotel", "City Hotel")),
-                "lead_time": int(row.get("lead_time", 0)),
-                "arrival_date": arrival_date,
-                "stays_in_weekend_nights": int(row.get("stays_in_weekend_nights", 0)),
-                "stays_in_week_nights": int(row.get("stays_in_week_nights", 1)),
-                "adults": int(row.get("adults", 2)),
-                "children": int(row.get("children", 0) or 0),
-                "babies": int(row.get("babies", 0)),
-                "meal": str(row.get("meal", "BB")),
-                "market_segment": str(row.get("market_segment", "Online TA")),
-                "distribution_channel": str(row.get("distribution_channel", "TA/TO")),
-                "is_repeated_guest": int(row.get("is_repeated_guest", 0)),
-                "previous_cancellations": int(row.get("previous_cancellations", 0)),
-                "previous_bookings_not_canceled": int(row.get("previous_bookings_not_canceled", 0)),
-                "reserved_room_type": str(row.get("reserved_room_type", "A")),
-                "assigned_room_type": str(row.get("assigned_room_type", "A")),
-                "booking_changes": int(row.get("booking_changes", 0)),
-                "deposit_type": str(row.get("deposit_type", "No Deposit")),
-                "days_in_waiting_list": int(row.get("days_in_waiting_list", 0)),
-                "customer_type": str(row.get("customer_type", "Transient")),
-                "adr": float(row.get("adr", 100.0)),
-                "required_car_parking_spaces": int(row.get("required_car_parking_spaces", 0)),
-                "total_of_special_requests": int(row.get("total_of_special_requests", 0)),
-            }
-
-            resp = requests.post(
-                f"{API_URL}/predict",
-                json=payload,
-                timeout=10
-            )
-            resp.raise_for_status()
-            prob = resp.json().get("probability", 0.0)
-
-        except Exception:
-            prob = 0.0
-
-        probabilidades.append(prob)
-        progress.progress((i + 1) / total)
-
-    progress.empty()
-    return np.array(probabilidades)
-
-
-# Decidir si usar API o modelo local
-usar_api = api_disponible()
-
-if usar_api:
-    st.sidebar.success("✅ API activa — prediciendo con AWS")
-    y_proba = predecir_con_api(df_original)
-else:
-    st.sidebar.warning("⚠️ API no disponible — usando modelo local")
-    y_proba = model.predict_proba(X_eval)[:,1]
-
-y_pred = (y_proba >= threshold).astype(int)
+y_pred = (
+    y_proba >= threshold
+).astype(int)
 
 # =========================================================
-# RESULTADOS
+# RESULTS
 # =========================================================
 
 results = X_eval.copy()
@@ -432,28 +619,69 @@ results["Probabilidad"] = np.round(
 
 results["Predicción"] = np.where(
     y_pred == 1,
-    "Cancelará",
-    "No cancelará"
+    "❌ Cancelará",
+    "✅ No cancelará"
 )
 
 # =========================================================
-# NIVEL DE RIESGO
+# RISK LEVEL
 # =========================================================
 
 def riesgo(p):
 
     if p > 0.7:
-        return "🔴 Alto"
+        return "🔴 Riesgo Alto"
 
     elif p > 0.4:
-        return "🟡 Medio"
+        return "🟡 Riesgo Medio"
 
     else:
-        return "🟢 Bajo"
+        return "🟢 Riesgo Bajo"
 
 results["Nivel de Riesgo"] = results[
     "Probabilidad"
 ].apply(riesgo)
+
+# =========================================================
+# ACTIONS
+# =========================================================
+
+def accion_recomendada(r):
+
+    if r == "🔴 Riesgo Alto":
+
+        return (
+            "🚨 Solicitar depósito | "
+            "📞 Reconfirmar reserva | "
+            "👀 Monitoreo prioritario"
+        )
+
+    elif r == "🟡 Riesgo Medio":
+
+        return (
+            "📧 Enviar recordatorio | "
+            "📊 Seguimiento preventivo"
+        )
+
+    else:
+
+        return (
+            "✅ Flujo normal de atención"
+        )
+
+results["Acción Recomendada"] = results[
+    "Nivel de Riesgo"
+].apply(accion_recomendada)
+
+# =========================================================
+# COLORS
+# =========================================================
+
+risk_colors = {
+    "🟢 Riesgo Bajo": "#00CC96",
+    "🟡 Riesgo Medio": "#FECB52",
+    "🔴 Riesgo Alto": "#EF553B"
+}
 
 # =========================================================
 # TABS
@@ -467,21 +695,17 @@ tab1, tab2, tab3, tab4 = st.tabs([
 ])
 
 # =========================================================
-# TAB 1 — RESUMEN EJECUTIVO
+# TAB 1
 # =========================================================
 
 with tab1:
-
-    st.subheader(
-        "Resumen Ejecutivo"
-    )
 
     total = len(results)
 
     cancelaciones = (
         results["Predicción"]
         ==
-        "Cancelará"
+        "❌ Cancelará"
     ).sum()
 
     riesgo_prom = results[
@@ -491,125 +715,235 @@ with tab1:
     pct_alto = (
         results["Nivel de Riesgo"]
         ==
-        "🔴 Alto"
+        "🔴 Riesgo Alto"
     ).mean() * 100
 
-    # =====================================================
-    # KPIS
-    # =====================================================
+    # =========================================================
+    # KPIs
+    # =========================================================
 
     col1, col2, col3, col4 = st.columns(4)
 
     col1.metric(
-        "Reservas Totales",
+        "🏨 Reservas",
         total
     )
 
     col2.metric(
-        "Cancelaciones Predichas",
+        "❌ Cancelaciones",
         cancelaciones
     )
 
     col3.metric(
-        "Riesgo Promedio",
-        f"{riesgo_prom:.2%}"
+        "📊 Riesgo Promedio",
+        f"{riesgo_prom:.1%}"
     )
 
     col4.metric(
-        "% Riesgo Alto",
+        "🚨 % Riesgo Alto",
         f"{pct_alto:.1f}%"
     )
 
     st.divider()
 
-    st.success(f"""
-    El modelo detectó que el
-    {pct_alto:.1f}% de las reservas
-    presenta alto riesgo de cancelación.
-    """)
+    # =========================================================
+    # RECOMENDACIONES OPERATIVAS
+    # =========================================================
 
-    # =====================================================
-    # RIESGO POR HOTEL
-    # =====================================================
+    st.subheader(
+        "🎯 Recomendaciones Operativas"
+    )
 
-    if "hotel" in results.columns:
+    alto = (
+        results["Nivel de Riesgo"]
+        == "🔴 Riesgo Alto"
+    ).sum()
 
-        riesgo_hotel = (
-            results.groupby("hotel")[
-                "Probabilidad"
-            ]
-            .mean()
-            .sort_values(
-                ascending=False
-            )
-            .reset_index()
+    medio = (
+        results["Nivel de Riesgo"]
+        == "🟡 Riesgo Medio"
+    ).sum()
+
+    bajo = (
+        results["Nivel de Riesgo"]
+        == "🟢 Riesgo Bajo"
+    ).sum()
+
+    st.markdown("""
+    <style>
+
+    .custom-card-red {
+        background-color: rgba(239,85,59,0.18);
+        padding: 25px;
+        border-radius: 18px;
+        border: 1px solid rgba(239,85,59,0.40);
+    }
+
+    .custom-card-yellow {
+        background-color: rgba(254,203,82,0.18);
+        padding: 25px;
+        border-radius: 18px;
+        border: 1px solid rgba(254,203,82,0.40);
+    }
+
+    .custom-card-green {
+        background-color: rgba(0,204,150,0.18);
+        padding: 25px;
+        border-radius: 18px;
+        border: 1px solid rgba(0,204,150,0.40);
+    }
+
+    .card-title {
+        font-size: 22px;
+        font-weight: bold;
+        margin-bottom: 15px;
+        color: white;
+    }
+
+    .card-text {
+        font-size: 16px;
+        margin-bottom: 10px;
+        color: white;
+    }
+
+    </style>
+    """, unsafe_allow_html=True)
+
+    c1, c2, c3 = st.columns(3)
+
+    with c1:
+
+        st.markdown(f"""
+        <div class="custom-card-red">
+
+            <div class="card-title">
+                🔴 Riesgo Alto
+            </div>
+
+            <div class="card-text">
+                Reservas: {alto}
+            </div>
+
+            <div class="card-text">
+                Acción:
+                Solicitar depósito y reconfirmar reserva.
+            </div>
+
+        </div>
+        """, unsafe_allow_html=True)
+
+    with c2:
+
+        st.markdown(f"""
+        <div class="custom-card-yellow">
+
+            <div class="card-title">
+                🟡 Riesgo Medio
+            </div>
+
+            <div class="card-text">
+                Reservas: {medio}
+            </div>
+
+            <div class="card-text">
+                Acción:
+                Seguimiento preventivo.
+            </div>
+
+        </div>
+        """, unsafe_allow_html=True)
+
+    with c3:
+
+        st.markdown(f"""
+        <div class="custom-card-green">
+
+            <div class="card-title">
+                🟢 Riesgo Bajo
+            </div>
+
+            <div class="card-text">
+                Reservas: {bajo}
+            </div>
+
+            <div class="card-text">
+                Acción:
+                Flujo normal.
+            </div>
+
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.divider()
+
+    # =========================================================
+    # GRÁFICOS
+    # =========================================================
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        fig_hist = px.histogram(
+            results,
+            x="Probabilidad",
+            color="Nivel de Riesgo",
+            template="plotly_dark",
+            nbins=30,
+            color_discrete_map=risk_colors
         )
 
-        fig_hotel = px.bar(
-            riesgo_hotel,
-            x="hotel",
-            y="Probabilidad",
-            title="Riesgo promedio por hotel"
+        fig_hist.update_layout(
+            title="📈 Distribución de Probabilidades",
+            paper_bgcolor="#0E1117",
+            plot_bgcolor="#0E1117"
         )
 
         st.plotly_chart(
-            fig_hotel,
+            fig_hist,
             width="stretch"
         )
 
-    # =====================================================
-    # RIESGO POR SEGMENTO
-    # =====================================================
+    with col2:
 
-    if "market_segment" in results.columns:
-
-        riesgo_segmento = (
-            results.groupby(
-                "market_segment"
-            )["Probabilidad"]
-            .mean()
-            .sort_values(
-                ascending=False
-            )
+        riesgo_counts = (
+            results["Nivel de Riesgo"]
+            .value_counts()
             .reset_index()
         )
 
-        fig_seg = px.bar(
-            riesgo_segmento,
-            x="market_segment",
-            y="Probabilidad",
-            title="Riesgo promedio por segmento"
+        riesgo_counts.columns = [
+            "Nivel de Riesgo",
+            "Cantidad"
+        ]
+
+        fig_pie = px.pie(
+            riesgo_counts,
+            names="Nivel de Riesgo",
+            values="Cantidad",
+            hole=0.5,
+            template="plotly_dark",
+            color="Nivel de Riesgo",
+            color_discrete_map=risk_colors
+        )
+
+        fig_pie.update_layout(
+            title="🥧 Distribución de Riesgo",
+            paper_bgcolor="#0E1117"
         )
 
         st.plotly_chart(
-            fig_seg,
+            fig_pie,
             width="stretch"
         )
-
-    # =====================================================
-    # DISTRIBUCIÓN
-    # =====================================================
-
-    fig_dist = px.histogram(
-        results,
-        x="Probabilidad",
-        nbins=30,
-        title="Distribución de probabilidades"
-    )
-
-    st.plotly_chart(
-        fig_dist,
-        width="stretch"
-    )
-
 # =========================================================
-# TAB 2 — PERFORMANCE ML
+# TAB 2
 # =========================================================
 
 with tab2:
 
     st.subheader(
-        "Performance del Modelo"
+        "🤖 Performance del Modelo"
     )
 
     if y_eval is not None:
@@ -634,324 +968,194 @@ with tab2:
             y_proba
         )
 
-        # =================================================
-        # KPIS
-        # =================================================
-
         col1, col2, col3, col4 = st.columns(4)
 
         col1.metric(
-            "Accuracy",
+            "🎯 Accuracy",
             f"{accuracy:.2%}"
         )
 
         col2.metric(
-            "Recall",
+            "📡 Recall",
             f"{recall:.2%}"
         )
 
         col3.metric(
-            "F1 Score",
+            "⚖️ F1 Score",
             f"{f1:.2%}"
         )
 
         col4.metric(
-            "AUC ROC",
+            "📈 AUC ROC",
             f"{auc:.2%}"
         )
 
         st.divider()
 
-        # =================================================
-        # MATRIZ + ROC
-        # =================================================
-
         col1, col2 = st.columns(2)
 
-        # =================================================
-        # MATRIZ
-        # =================================================
-
         with col1:
-
-            st.write(
-                "### Matriz de Confusión"
-            )
 
             cm = confusion_matrix(
                 y_eval,
                 y_pred
             )
 
-            fig, ax = plt.subplots(
-                figsize=(6,5)
-            )
-
-            sns.heatmap(
+            fig_cm = px.imshow(
                 cm,
-                annot=True,
-                fmt="d",
-                cmap="Blues",
-                cbar=False,
-                ax=ax
+                text_auto=True,
+                color_continuous_scale="RdYlGn",
+                title="🧩 Confusion Matrix"
             )
 
-            ax.set_xlabel(
-                "Predicción"
+            st.plotly_chart(
+                fig_cm,
+                width="stretch"
             )
-
-            ax.set_ylabel(
-                "Real"
-            )
-
-            st.pyplot(fig)
-
-        # =================================================
-        # ROC
-        # =================================================
 
         with col2:
-
-            st.write(
-                "### Curva ROC"
-            )
 
             fpr, tpr, _ = roc_curve(
                 y_eval,
                 y_proba
             )
 
-            fig2, ax2 = plt.subplots(
-                figsize=(6,5)
+            fig_roc = go.Figure()
+
+            fig_roc.add_trace(
+                go.Scatter(
+                    x=fpr,
+                    y=tpr,
+                    mode="lines",
+                    name=f"AUC = {auc:.3f}",
+                    line=dict(
+                        color="#00CC96",
+                        width=4
+                    )
+                )
             )
 
-            ax2.plot(
-                fpr,
-                tpr,
-                linewidth=3,
-                label=f"AUC = {auc:.3f}"
+            fig_roc.add_trace(
+                go.Scatter(
+                    x=[0,1],
+                    y=[0,1],
+                    mode="lines",
+                    line=dict(
+                        dash="dash",
+                        color="#EF553B"
+                    ),
+                    showlegend=False
+                )
             )
 
-            ax2.plot(
-                [0,1],
-                [0,1],
-                "--"
+            fig_roc.update_layout(
+                template="plotly_dark",
+                title="📈 ROC Curve"
             )
 
-            ax2.legend()
-
-            st.pyplot(fig2)
+            st.plotly_chart(
+                fig_roc,
+                width="stretch"
+            )
 
     else:
 
-        st.info("""
-        El dataset no contiene la
-        variable objetivo
-        'is_canceled'.
-        """)
+        st.info(
+            "📂 Suba dataset con is_canceled para evaluar métricas."
+        )
 
 # =========================================================
-# TAB 3 — PREDICCIONES
+# TAB 3
 # =========================================================
 
 with tab3:
 
     st.subheader(
-        "Simulador de Predicciones"
-    )
-
-    filtro = st.selectbox(
-        "Filtrar resultados",
-        [
-            "Todos",
-            "Cancelará",
-            "No cancelará"
-        ]
-    )
-
-    results_filtered = results.copy()
-
-    if filtro != "Todos":
-
-        results_filtered = results_filtered[
-            results_filtered[
-                "Predicción"
-            ] == filtro
-        ]
-
-    # =====================================================
-    # KPIS
-    # =====================================================
-
-    col1, col2, col3 = st.columns(3)
-
-    col1.metric(
-        "Reservas",
-        len(results_filtered)
-    )
-
-    col2.metric(
-        "Cancelaciones Predichas",
-        int(
-            (
-                results_filtered[
-                    "Predicción"
-                ]
-                ==
-                "Cancelará"
-            ).sum()
-        )
-    )
-
-    col3.metric(
-        "Riesgo Promedio",
-        f"{results_filtered['Probabilidad'].mean():.2%}"
-    )
-
-    st.divider()
-
-    # =====================================================
-    # TOP RIESGO
-    # =====================================================
-
-    st.write(
-        "### Reservas críticas"
-    )
-
-    top_riesgo = results_filtered.sort_values(
-        "Probabilidad",
-        ascending=False
-    ).head(10)
-
-    st.dataframe(
-        top_riesgo,
-        width="stretch"
-    )
-
-    st.divider()
-
-    # =====================================================
-    # RESULTADOS
-    # =====================================================
-
-    st.write(
-        "### Resultados completos"
+        "📋 Predicciones"
     )
 
     st.dataframe(
-        results_filtered.head(100),
+        results.head(100),
         width="stretch"
     )
 
-    # =====================================================
-    # DESCARGA
-    # =====================================================
-
-    csv = results_filtered.to_csv(
+    csv = results.to_csv(
         index=False
     ).encode("utf-8")
 
     st.download_button(
-        label="📥 Descargar resultados",
-        data=csv,
-        file_name="predicciones.csv",
-        mime="text/csv"
+        "⬇ Descargar predicciones",
+        csv,
+        "predicciones.csv",
+        "text/csv"
     )
 
 # =========================================================
-# TAB 4 — SHAP
+# TAB 4
 # =========================================================
 
 with tab4:
 
     st.subheader(
-        "Explainability con SHAP"
+        "🔍 Explainability con SHAP"
     )
 
-    st.write("""
-    SHAP permite interpretar cómo
-    cada variable impacta en las
-    predicciones del modelo.
-    """)
+    try:
 
-    # =====================================================
-    # COMPONENTES PIPELINE
-    # =====================================================
+        preprocessor = model.named_steps[
+            "preprocessor"
+        ]
 
-    preprocessor = model.named_steps[
-        "preprocessor"
-    ]
+        clf = model.named_steps[
+            "clf"
+        ]
 
-    clf = model.named_steps[
-        "clf"
-    ]
+        X_transformed = preprocessor.transform(
+            X_eval
+        )
 
-    # =====================================================
-    # TRANSFORMAR
-    # =====================================================
+        feature_names = (
+            preprocessor.get_feature_names_out()
+        )
 
-    X_transformed = preprocessor.transform(
-        X_eval
-    )
+        feature_names = [
+            col.replace("num__", "")
+               .replace("cat__", "")
+            for col in feature_names
+        ]
 
-    # =====================================================
-    # FEATURE NAMES
-    # =====================================================
+        X_transformed_df = pd.DataFrame(
+            X_transformed,
+            columns=feature_names
+        )
 
-    feature_names = (
-        preprocessor.get_feature_names_out()
-    )
+        sample_shap = X_transformed_df.sample(
+            min(300, len(X_transformed_df)),
+            random_state=42
+        )
 
-    feature_names = [
-        col.replace("num__", "")
-           .replace("cat__", "")
-        for col in feature_names
-    ]
+        explainer = shap.TreeExplainer(
+            clf
+        )
 
-    X_transformed_df = pd.DataFrame(
-        X_transformed,
-        columns=feature_names
-    )
+        shap_values = explainer.shap_values(
+            sample_shap
+        )
 
-    # =====================================================
-    # SAMPLE
-    # =====================================================
+        fig_shap, ax = plt.subplots(
+            figsize=(12,8)
+        )
 
-    sample_shap = X_transformed_df.sample(
-        min(300, len(X_transformed_df)),
-        random_state=42
-    )
+        shap.summary_plot(
+            shap_values,
+            sample_shap,
+            show=False
+        )
 
-    # =====================================================
-    # SHAP VALUES
-    # =====================================================
+        st.pyplot(fig_shap)
 
-    explainer = shap.TreeExplainer(
-        clf
-    )
+    except Exception as e:
 
-    shap_values = explainer.shap_values(
-        sample_shap
-    )
-
-    # =====================================================
-    # SUMMARY PLOT
-    # =====================================================
-
-    fig_shap, ax = plt.subplots(
-        figsize=(12,8)
-    )
-
-    shap.summary_plot(
-        shap_values,
-        sample_shap,
-        show=False
-    )
-
-    st.pyplot(fig_shap)
-
-    st.info("""
-    Las variables ubicadas arriba
-    son las más influyentes para
-    el modelo.
-    """)
+        st.warning(
+            f"⚠️ Error SHAP: {e}"
+        )
