@@ -1,17 +1,16 @@
 # =========================================================
-# LIBRERÍAS
+# HOTEL CANCELLATION INTELLIGENCE PLATFORM
 # =========================================================
 
 import streamlit as st
 import pandas as pd
 import numpy as np
+
 import matplotlib.pyplot as plt
-import seaborn as sns
 import plotly.express as px
+import plotly.graph_objects as go
 
 import joblib
-import requests
-import os
 import shap
 
 from pathlib import Path
@@ -26,16 +25,17 @@ from sklearn.metrics import (
 )
 
 # =========================================================
-# CONFIGURACIÓN
+# CONFIG
 # =========================================================
 
 st.set_page_config(
-    page_title="Dashboard de cancelaciones hoteleras",
-    layout="wide"
+    page_title="Hotel Cancellation Intelligence",
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
 # =========================================================
-# ESTILOS
+# CUSTOM CSS
 # =========================================================
 
 st.markdown("""
@@ -54,11 +54,34 @@ h1, h2, h3, h4 {
     background-color: #1E1E2F;
 }
 
+.kpi-card {
+    background-color: #1C2333;
+    padding: 20px;
+    border-radius: 18px;
+    text-align: center;
+    border: 1px solid #2A3447;
+}
+
+.kpi-title {
+    font-size: 15px;
+    color: #9CA3AF;
+}
+
+.kpi-value {
+    font-size: 34px;
+    font-weight: bold;
+    color: white;
+}
+
+.block-container {
+    padding-top: 2rem;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
 # =========================================================
-# RUTA DEL MODELO
+# MODEL
 # =========================================================
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -68,6 +91,13 @@ MODEL_PATH = (
     / "models"
     / "final_pipeline.pkl"
 )
+
+@st.cache_resource
+def load_model():
+
+    return joblib.load(MODEL_PATH)
+
+model = load_model()
 
 # =========================================================
 # CLEANING
@@ -105,9 +135,9 @@ def clean_data(df):
 
         p99 = df["adr"].quantile(0.99)
 
-        df["adr"] = df[
-            "adr"
-        ].clip(upper=p99)
+        df["adr"] = df["adr"].clip(
+            upper=p99
+        )
 
     return df
 
@@ -144,9 +174,7 @@ def feature_engineering(df):
         .astype(int)
     )
 
-    df["adr_log"] = np.log1p(
-        df["adr"]
-    )
+    df["adr_log"] = np.log1p(df["adr"])
 
     df["lead_time_log"] = np.log1p(
         df["lead_time"]
@@ -155,48 +183,11 @@ def feature_engineering(df):
     return df
 
 # =========================================================
-# CONFIGURACIÓN API
-# =========================================================
-
-API_URL = os.getenv(
-    "API_URL",
-    "http://3.81.51.149:8000"
-)
-
-@st.cache_resource
-def load_model():
-
-    try:
-
-        return joblib.load(MODEL_PATH)
-
-    except Exception:
-
-        return None
-
-model = load_model()
-
-def api_disponible():
-
-    try:
-
-        r = requests.get(
-            f"{API_URL}/health",
-            timeout=5
-        )
-
-        return r.status_code == 200
-
-    except Exception:
-
-        return False
-
-# =========================================================
 # SIDEBAR
 # =========================================================
 
 st.sidebar.title(
-    "Panel de Control"
+    "⚙️ Panel de Control"
 )
 
 threshold = st.sidebar.slider(
@@ -220,24 +211,25 @@ Threshold altos:
 ↑ Precision
 """)
 
+st.sidebar.warning(
+    "⚠️ Usando modelo local"
+)
+
 # =========================================================
 # HEADER
 # =========================================================
 
-st.title(
-    "Dashboard de cancelaciones hoteleras"
-)
+st.markdown("""
+# 🏨 Dashboard de cancelaciones hoteleras
 
-st.write("""
-Sistema interactivo de predicción
-de cancelaciones hoteleras basado
-en Machine Learning.
+Sistema inteligente de predicción de cancelaciones hoteleras
+para revenue management y toma de decisiones estratégicas.
 """)
 
 st.divider()
 
 # =========================================================
-# MODO DE USO
+# MODE SELECTION
 # =========================================================
 
 modo = st.radio(
@@ -250,14 +242,14 @@ modo = st.radio(
 )
 
 # =========================================================
-# PREDICCIÓN MASIVA
+# MASSIVE PREDICTION
 # =========================================================
 
 if modo == "📂 Predicción Masiva":
 
     uploaded = st.file_uploader(
-        "📂 Suba un archivo CSV",
-        type="csv"
+        "📂 Suba un archivo",
+        type=["csv", "xlsx", "xls"]
     )
 
     if uploaded is None:
@@ -268,14 +260,20 @@ if modo == "📂 Predicción Masiva":
 
         st.stop()
 
-    df_eval = pd.read_csv(uploaded)
+    if uploaded.name.endswith(".csv"):
+
+        df_eval = pd.read_csv(uploaded)
+
+    else:
+
+        df_eval = pd.read_excel(uploaded)
 
     st.success(
-        "Dataset cargado correctamente"
+        "✅ Dataset cargado correctamente"
     )
 
     with st.expander(
-        "Vista previa del dataset"
+        "📄 Vista previa del dataset"
     ):
 
         st.dataframe(
@@ -284,23 +282,29 @@ if modo == "📂 Predicción Masiva":
         )
 
 # =========================================================
-# SIMULACIÓN MANUAL
+# MANUAL SIMULATION
 # =========================================================
 
 else:
 
     st.subheader(
-        "Simulación manual de reserva"
+        "🧾 Simulación manual de reserva"
     )
 
     with st.form("manual_form"):
 
         col1, col2, col3 = st.columns(3)
 
+        # =====================================================
+        # RESERVA
+        # =====================================================
+
         with col1:
 
+            st.markdown("## 🏨 Reserva")
+
             hotel = st.selectbox(
-                "Hotel",
+                "🏨 Hotel",
                 [
                     "Resort Hotel",
                     "City Hotel"
@@ -308,21 +312,21 @@ else:
             )
 
             lead_time = st.slider(
-                "Lead Time",
+                "⏳ Lead Time",
                 0,
                 700,
                 120
             )
 
             adr = st.number_input(
-                "ADR",
+                "💰 ADR",
                 0.0,
                 1000.0,
                 120.0
             )
 
             month = st.selectbox(
-                "Mes llegada",
+                "📅 Mes llegada",
                 [
                     "January","February","March",
                     "April","May","June",
@@ -331,40 +335,119 @@ else:
                 ]
             )
 
+            arrival_week = st.slider(
+                "🗓️ Semana llegada",
+                1,
+                53,
+                30
+            )
+
+            arrival_day = st.slider(
+                "📍 Día llegada",
+                1,
+                31,
+                15
+            )
+
+            week_nights = st.slider(
+                "🌙 Noches entre semana",
+                0,
+                20,
+                2
+            )
+
+            weekend_nights = st.slider(
+                "🎉 Noches fin semana",
+                0,
+                10,
+                1
+            )
+
+            reserved_room_type = st.selectbox(
+                "🛏️ Habitación reservada",
+                ["A","B","C","D","E","F","G"]
+            )
+
+            assigned_room_type = st.selectbox(
+                "🔑 Habitación asignada",
+                ["A","B","C","D","E","F","G"]
+            )
+
+        # =====================================================
+        # CLIENTE
+        # =====================================================
+
         with col2:
 
+            st.markdown("## 👤 Cliente")
+
             adults = st.slider(
-                "Adultos",
+                "🧑 Adultos",
                 1,
                 5,
                 2
             )
 
             children = st.slider(
-                "Niños",
+                "🧒 Niños",
                 0,
                 4,
                 0
             )
 
             babies = st.slider(
-                "Bebés",
+                "👶 Bebés",
                 0,
                 2,
                 0
             )
 
+            is_repeated_guest = st.selectbox(
+                "🔁 Cliente recurrente",
+                [0,1]
+            )
+
             previous_cancellations = st.slider(
-                "Cancelaciones previas",
+                "❌ Cancelaciones previas",
                 0,
                 10,
                 0
             )
 
+            previous_bookings_not_canceled = st.slider(
+                "✅ Reservas previas no canceladas",
+                0,
+                50,
+                0
+            )
+
+            customer_type = st.selectbox(
+                "🪪 Tipo cliente",
+                [
+                    "Transient",
+                    "Contract",
+                    "Transient-Party",
+                    "Group"
+                ]
+            )
+
+            parking_spaces = st.slider(
+                "🚗 Parking requerido",
+                0,
+                5,
+                0
+            )
+
+        # =====================================================
+        # COMERCIAL
+        # =====================================================
+
         with col3:
 
+            st.markdown("## 💼 Comercial")
+
             market_segment = st.selectbox(
-                "Segmento",
+                "📊 Segmento",
                 [
                     "Online TA",
                     "Offline TA/TO",
@@ -374,8 +457,18 @@ else:
                 ]
             )
 
+            distribution_channel = st.selectbox(
+                "🌐 Canal distribución",
+                [
+                    "TA/TO",
+                    "Direct",
+                    "Corporate",
+                    "GDS"
+                ]
+            )
+
             deposit_type = st.selectbox(
-                "Depósito",
+                "💳 Depósito",
                 [
                     "No Deposit",
                     "Refundable",
@@ -384,26 +477,37 @@ else:
             )
 
             special_requests = st.slider(
-                "Solicitudes especiales",
+                "⭐ Solicitudes especiales",
                 0,
                 5,
                 1
             )
 
             booking_changes = st.slider(
-                "Cambios de reserva",
+                "🔄 Cambios de reserva",
                 0,
                 10,
                 0
             )
 
+            waiting_list = st.slider(
+                "⏱️ Waiting list",
+                0,
+                400,
+                0
+            )
+
         submitted = st.form_submit_button(
-            "Predecir cancelación"
+            "🔍 Predecir cancelación"
         )
 
     if not submitted:
 
         st.stop()
+
+    # =====================================================
+    # DATAFRAME MANUAL
+    # =====================================================
 
     df_eval = pd.DataFrame([{
 
@@ -411,57 +515,68 @@ else:
         "lead_time": lead_time,
         "arrival_date_year": 2017,
         "arrival_date_month": month,
-        "arrival_date_week_number": 30,
-        "arrival_date_day_of_month": 15,
-        "stays_in_weekend_nights": 1,
-        "stays_in_week_nights": 2,
+        "arrival_date_week_number": arrival_week,
+        "arrival_date_day_of_month": arrival_day,
+
+        "stays_in_weekend_nights": weekend_nights,
+        "stays_in_week_nights": week_nights,
+
         "adults": adults,
         "children": children,
         "babies": babies,
+
+        # EL MODELO NECESITA ESTA VARIABLE
         "meal": "BB",
+
         "market_segment": market_segment,
-        "distribution_channel": "TA/TO",
-        "is_repeated_guest": 0,
-        "previous_cancellations": previous_cancellations,
-        "previous_bookings_not_canceled": 0,
-        "reserved_room_type": "A",
-        "assigned_room_type": "A",
-        "booking_changes": booking_changes,
-        "deposit_type": deposit_type,
-        "days_in_waiting_list": 0,
-        "customer_type": "Transient",
+        "distribution_channel": distribution_channel,
+
+        "is_repeated_guest": is_repeated_guest,
+
+        "previous_cancellations":
+            previous_cancellations,
+
+        "previous_bookings_not_canceled":
+            previous_bookings_not_canceled,
+
+        "reserved_room_type":
+            reserved_room_type,
+
+        "assigned_room_type":
+            assigned_room_type,
+
+        "booking_changes":
+            booking_changes,
+
+        "deposit_type":
+            deposit_type,
+
+        "days_in_waiting_list":
+            waiting_list,
+
+        "customer_type":
+            customer_type,
+
         "adr": adr,
-        "required_car_parking_spaces": 0,
-        "total_of_special_requests": special_requests
+
+        "required_car_parking_spaces":
+            parking_spaces,
+
+        "total_of_special_requests":
+            special_requests
 
     }])
 
-    st.success(
-        "Reserva generada correctamente"
-    )
-
-    st.dataframe(df_eval)
-
 # =========================================================
-# GUARDAR ORIGINAL
-# =========================================================
-
-df_original = df_eval.copy()
-
-# =========================================================
-# CLEANING
+# PROCESSING
 # =========================================================
 
 df_eval = clean_data(df_eval)
 
-# =========================================================
-# FEATURE ENGINEERING
-# =========================================================
-
 df_eval = feature_engineering(df_eval)
 
 # =========================================================
-# DEFINIR X / Y
+# X / Y
 # =========================================================
 
 if "is_canceled" in df_eval.columns:
@@ -471,9 +586,7 @@ if "is_canceled" in df_eval.columns:
         axis=1
     )
 
-    y_eval = df_eval[
-        "is_canceled"
-    ]
+    y_eval = df_eval["is_canceled"]
 
 else:
 
@@ -482,114 +595,19 @@ else:
     y_eval = None
 
 # =========================================================
-# PREDICCIÓN API
+# PREDICTIONS
 # =========================================================
 
-def predecir_con_api(df_input):
-
-    probabilidades = []
-
-    for _, row in df_input.iterrows():
-
-        try:
-
-            mes_map = {
-                "January":1,"February":2,"March":3,
-                "April":4,"May":5,"June":6,
-                "July":7,"August":8,"September":9,
-                "October":10,"November":11,"December":12
-            }
-
-            mes_num = mes_map.get(
-                str(row.get("arrival_date_month","January")),
-                1
-            )
-
-            arrival_date = (
-                f"{int(row.get('arrival_date_year',2017))}-"
-                f"{mes_num:02d}-"
-                f"{int(row.get('arrival_date_day_of_month',1)):02d}"
-            )
-
-            payload = {
-
-                "hotel": str(row.get("hotel","City Hotel")),
-                "lead_time": int(row.get("lead_time",0)),
-                "arrival_date": arrival_date,
-                "stays_in_weekend_nights": int(row.get("stays_in_weekend_nights",0)),
-                "stays_in_week_nights": int(row.get("stays_in_week_nights",1)),
-                "adults": int(row.get("adults",2)),
-                "children": int(row.get("children",0)),
-                "babies": int(row.get("babies",0)),
-                "meal": str(row.get("meal","BB")),
-                "market_segment": str(row.get("market_segment","Online TA")),
-                "distribution_channel": str(row.get("distribution_channel","TA/TO")),
-                "is_repeated_guest": int(row.get("is_repeated_guest",0)),
-                "previous_cancellations": int(row.get("previous_cancellations",0)),
-                "previous_bookings_not_canceled": int(row.get("previous_bookings_not_canceled",0)),
-                "reserved_room_type": str(row.get("reserved_room_type","A")),
-                "assigned_room_type": str(row.get("assigned_room_type","A")),
-                "booking_changes": int(row.get("booking_changes",0)),
-                "deposit_type": str(row.get("deposit_type","No Deposit")),
-                "days_in_waiting_list": int(row.get("days_in_waiting_list",0)),
-                "customer_type": str(row.get("customer_type","Transient")),
-                "adr": float(row.get("adr",100.0)),
-                "required_car_parking_spaces": int(row.get("required_car_parking_spaces",0)),
-                "total_of_special_requests": int(row.get("total_of_special_requests",0))
-
-            }
-
-            resp = requests.post(
-                f"{API_URL}/predict",
-                json=payload,
-                timeout=10
-            )
-
-            prob = resp.json().get(
-                "probability",
-                0.0
-            )
-
-        except Exception:
-
-            prob = 0.0
-
-        probabilidades.append(prob)
-
-    return np.array(probabilidades)
-
-# =========================================================
-# PREDECIR
-# =========================================================
-
-usar_api = api_disponible()
-
-if usar_api:
-
-    st.sidebar.success(
-        "API AWS conectada"
-    )
-
-    y_proba = predecir_con_api(
-        df_original
-    )
-
-else:
-
-    st.sidebar.warning(
-        "Usando modelo local"
-    )
-
-    y_proba = model.predict_proba(
-        X_eval
-    )[:,1]
+y_proba = model.predict_proba(
+    X_eval
+)[:,1]
 
 y_pred = (
     y_proba >= threshold
 ).astype(int)
 
 # =========================================================
-# RESULTADOS
+# RESULTS
 # =========================================================
 
 results = X_eval.copy()
@@ -601,28 +619,69 @@ results["Probabilidad"] = np.round(
 
 results["Predicción"] = np.where(
     y_pred == 1,
-    "Cancelará",
-    "No cancelará"
+    "❌ Cancelará",
+    "✅ No cancelará"
 )
 
 # =========================================================
-# NIVEL DE RIESGO
+# RISK LEVEL
 # =========================================================
 
 def riesgo(p):
 
     if p > 0.7:
-        return "🔴 Alto"
+        return "🔴 Riesgo Alto"
 
     elif p > 0.4:
-        return "🟡 Medio"
+        return "🟡 Riesgo Medio"
 
     else:
-        return "🟢 Bajo"
+        return "🟢 Riesgo Bajo"
 
 results["Nivel de Riesgo"] = results[
     "Probabilidad"
 ].apply(riesgo)
+
+# =========================================================
+# ACTIONS
+# =========================================================
+
+def accion_recomendada(r):
+
+    if r == "🔴 Riesgo Alto":
+
+        return (
+            "🚨 Solicitar depósito | "
+            "📞 Reconfirmar reserva | "
+            "👀 Monitoreo prioritario"
+        )
+
+    elif r == "🟡 Riesgo Medio":
+
+        return (
+            "📧 Enviar recordatorio | "
+            "📊 Seguimiento preventivo"
+        )
+
+    else:
+
+        return (
+            "✅ Flujo normal de atención"
+        )
+
+results["Acción Recomendada"] = results[
+    "Nivel de Riesgo"
+].apply(accion_recomendada)
+
+# =========================================================
+# COLORS
+# =========================================================
+
+risk_colors = {
+    "🟢 Riesgo Bajo": "#00CC96",
+    "🟡 Riesgo Medio": "#FECB52",
+    "🔴 Riesgo Alto": "#EF553B"
+}
 
 # =========================================================
 # TABS
@@ -641,16 +700,12 @@ tab1, tab2, tab3, tab4 = st.tabs([
 
 with tab1:
 
-    st.subheader(
-        "Resumen Ejecutivo"
-    )
-
     total = len(results)
 
     cancelaciones = (
         results["Predicción"]
         ==
-        "Cancelará"
+        "❌ Cancelará"
     ).sum()
 
     riesgo_prom = results[
@@ -660,45 +715,227 @@ with tab1:
     pct_alto = (
         results["Nivel de Riesgo"]
         ==
-        "🔴 Alto"
+        "🔴 Riesgo Alto"
     ).mean() * 100
+
+    # =========================================================
+    # KPIs
+    # =========================================================
 
     col1, col2, col3, col4 = st.columns(4)
 
     col1.metric(
-        "Reservas Totales",
+        "🏨 Reservas",
         total
     )
 
     col2.metric(
-        "Cancelaciones Predichas",
+        "❌ Cancelaciones",
         cancelaciones
     )
 
     col3.metric(
-        "Riesgo Promedio",
-        f"{riesgo_prom:.2%}"
+        "📊 Riesgo Promedio",
+        f"{riesgo_prom:.1%}"
     )
 
     col4.metric(
-        "% Riesgo Alto",
+        "🚨 % Riesgo Alto",
         f"{pct_alto:.1f}%"
     )
 
     st.divider()
 
-    fig_dist = px.histogram(
-        results,
-        x="Probabilidad",
-        nbins=30,
-        title="Distribución de probabilidades"
+    # =========================================================
+    # RECOMENDACIONES OPERATIVAS
+    # =========================================================
+
+    st.subheader(
+        "🎯 Recomendaciones Operativas"
     )
 
-    st.plotly_chart(
-        fig_dist,
-        width="stretch"
-    )
+    alto = (
+        results["Nivel de Riesgo"]
+        == "🔴 Riesgo Alto"
+    ).sum()
 
+    medio = (
+        results["Nivel de Riesgo"]
+        == "🟡 Riesgo Medio"
+    ).sum()
+
+    bajo = (
+        results["Nivel de Riesgo"]
+        == "🟢 Riesgo Bajo"
+    ).sum()
+
+    st.markdown("""
+    <style>
+
+    .custom-card-red {
+        background-color: rgba(239,85,59,0.18);
+        padding: 25px;
+        border-radius: 18px;
+        border: 1px solid rgba(239,85,59,0.40);
+    }
+
+    .custom-card-yellow {
+        background-color: rgba(254,203,82,0.18);
+        padding: 25px;
+        border-radius: 18px;
+        border: 1px solid rgba(254,203,82,0.40);
+    }
+
+    .custom-card-green {
+        background-color: rgba(0,204,150,0.18);
+        padding: 25px;
+        border-radius: 18px;
+        border: 1px solid rgba(0,204,150,0.40);
+    }
+
+    .card-title {
+        font-size: 22px;
+        font-weight: bold;
+        margin-bottom: 15px;
+        color: white;
+    }
+
+    .card-text {
+        font-size: 16px;
+        margin-bottom: 10px;
+        color: white;
+    }
+
+    </style>
+    """, unsafe_allow_html=True)
+
+    c1, c2, c3 = st.columns(3)
+
+    with c1:
+
+        st.markdown(f"""
+        <div class="custom-card-red">
+
+            <div class="card-title">
+                🔴 Riesgo Alto
+            </div>
+
+            <div class="card-text">
+                Reservas: {alto}
+            </div>
+
+            <div class="card-text">
+                Acción:
+                Solicitar depósito y reconfirmar reserva.
+            </div>
+
+        </div>
+        """, unsafe_allow_html=True)
+
+    with c2:
+
+        st.markdown(f"""
+        <div class="custom-card-yellow">
+
+            <div class="card-title">
+                🟡 Riesgo Medio
+            </div>
+
+            <div class="card-text">
+                Reservas: {medio}
+            </div>
+
+            <div class="card-text">
+                Acción:
+                Seguimiento preventivo.
+            </div>
+
+        </div>
+        """, unsafe_allow_html=True)
+
+    with c3:
+
+        st.markdown(f"""
+        <div class="custom-card-green">
+
+            <div class="card-title">
+                🟢 Riesgo Bajo
+            </div>
+
+            <div class="card-text">
+                Reservas: {bajo}
+            </div>
+
+            <div class="card-text">
+                Acción:
+                Flujo normal.
+            </div>
+
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.divider()
+
+    # =========================================================
+    # GRÁFICOS
+    # =========================================================
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        fig_hist = px.histogram(
+            results,
+            x="Probabilidad",
+            color="Nivel de Riesgo",
+            template="plotly_dark",
+            nbins=30,
+            color_discrete_map=risk_colors
+        )
+
+        fig_hist.update_layout(
+            title="📈 Distribución de Probabilidades",
+            paper_bgcolor="#0E1117",
+            plot_bgcolor="#0E1117"
+        )
+
+        st.plotly_chart(
+            fig_hist,
+            width="stretch"
+        )
+
+    with col2:
+
+        riesgo_counts = (
+            results["Nivel de Riesgo"]
+            .value_counts()
+            .reset_index()
+        )
+
+        riesgo_counts.columns = [
+            "Nivel de Riesgo",
+            "Cantidad"
+        ]
+
+        fig_pie = px.pie(
+            riesgo_counts,
+            names="Nivel de Riesgo",
+            values="Cantidad",
+            hole=0.5,
+            template="plotly_dark",
+            color="Nivel de Riesgo",
+            color_discrete_map=risk_colors
+        )
+
+        fig_pie.update_layout(
+            title="🥧 Distribución de Riesgo",
+            paper_bgcolor="#0E1117"
+        )
+
+        st.plotly_chart(
+            fig_pie,
+            width="stretch"
+        )
 # =========================================================
 # TAB 2
 # =========================================================
@@ -706,7 +943,7 @@ with tab1:
 with tab2:
 
     st.subheader(
-        "Performance del Modelo"
+        "🤖 Performance del Modelo"
     )
 
     if y_eval is not None:
@@ -734,22 +971,22 @@ with tab2:
         col1, col2, col3, col4 = st.columns(4)
 
         col1.metric(
-            "Accuracy",
+            "🎯 Accuracy",
             f"{accuracy:.2%}"
         )
 
         col2.metric(
-            "Recall",
+            "📡 Recall",
             f"{recall:.2%}"
         )
 
         col3.metric(
-            "F1 Score",
+            "⚖️ F1 Score",
             f"{f1:.2%}"
         )
 
         col4.metric(
-            "AUC ROC",
+            "📈 AUC ROC",
             f"{auc:.2%}"
         )
 
@@ -764,20 +1001,17 @@ with tab2:
                 y_pred
             )
 
-            fig, ax = plt.subplots(
-                figsize=(6,5)
-            )
-
-            sns.heatmap(
+            fig_cm = px.imshow(
                 cm,
-                annot=True,
-                fmt="d",
-                cmap="Blues",
-                cbar=False,
-                ax=ax
+                text_auto=True,
+                color_continuous_scale="RdYlGn",
+                title="🧩 Confusion Matrix"
             )
 
-            st.pyplot(fig)
+            st.plotly_chart(
+                fig_cm,
+                width="stretch"
+            )
 
         with col2:
 
@@ -786,26 +1020,49 @@ with tab2:
                 y_proba
             )
 
-            fig2, ax2 = plt.subplots(
-                figsize=(6,5)
+            fig_roc = go.Figure()
+
+            fig_roc.add_trace(
+                go.Scatter(
+                    x=fpr,
+                    y=tpr,
+                    mode="lines",
+                    name=f"AUC = {auc:.3f}",
+                    line=dict(
+                        color="#00CC96",
+                        width=4
+                    )
+                )
             )
 
-            ax2.plot(
-                fpr,
-                tpr,
-                linewidth=3,
-                label=f"AUC = {auc:.3f}"
+            fig_roc.add_trace(
+                go.Scatter(
+                    x=[0,1],
+                    y=[0,1],
+                    mode="lines",
+                    line=dict(
+                        dash="dash",
+                        color="#EF553B"
+                    ),
+                    showlegend=False
+                )
             )
 
-            ax2.plot(
-                [0,1],
-                [0,1],
-                "--"
+            fig_roc.update_layout(
+                template="plotly_dark",
+                title="📈 ROC Curve"
             )
 
-            ax2.legend()
+            st.plotly_chart(
+                fig_roc,
+                width="stretch"
+            )
 
-            st.pyplot(fig2)
+    else:
+
+        st.info(
+            "📂 Suba dataset con is_canceled para evaluar métricas."
+        )
 
 # =========================================================
 # TAB 3
@@ -814,12 +1071,23 @@ with tab2:
 with tab3:
 
     st.subheader(
-        "Predicciones"
+        "📋 Predicciones"
     )
 
     st.dataframe(
         results.head(100),
         width="stretch"
+    )
+
+    csv = results.to_csv(
+        index=False
+    ).encode("utf-8")
+
+    st.download_button(
+        "⬇ Descargar predicciones",
+        csv,
+        "predicciones.csv",
+        "text/csv"
     )
 
 # =========================================================
@@ -829,7 +1097,7 @@ with tab3:
 with tab4:
 
     st.subheader(
-        "Explainability con SHAP"
+        "🔍 Explainability con SHAP"
     )
 
     try:
@@ -889,5 +1157,5 @@ with tab4:
     except Exception as e:
 
         st.warning(
-            f"Error SHAP: {e}"
+            f"⚠️ Error SHAP: {e}"
         )
