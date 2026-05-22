@@ -5,6 +5,8 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse
+from api.logging_config import log_event
+import time
 
 from api.inference import get_model_info, predict_from_raw
 from api.schemas import (
@@ -23,7 +25,6 @@ app = FastAPI(
     ),
     version="1.0.0",
 )
-
 
 # ============================================================
 # Friendly validation error messages
@@ -663,6 +664,12 @@ def home() -> HTMLResponse:
 
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
+
+    log_event(
+        event="healthcheck",
+        status_code=200
+    )
+
     return HealthResponse(status="ok")
 
 
@@ -680,15 +687,50 @@ def version() -> VersionResponse:
     )
 
 
+import time
+
 @app.post("/predict", response_model=PredictionResponse)
 def predict(request: RawPredictionRequest) -> PredictionResponse:
+
+    t0 = time.time()
+
     try:
+
         payload = request.model_dump()
+
         result = predict_from_raw(payload)
+
+        latency_ms = (time.time() - t0) * 1000
+
+        # Log estructurado
+        log_event(
+            event="prediction_success",
+            status_code=200,
+            latency_ms=round(latency_ms, 2),
+
+            # drift monitoring
+            lead_time=payload.get("lead_time"),
+            adr=payload.get("adr"),
+            adults=payload.get("adults"),
+            children=payload.get("children"),
+
+            prediction=result.get("prediction"),
+            probability=result.get("probability")
+        )
 
         return PredictionResponse(**result)
 
     except ValueError as exc:
+
+        latency_ms = (time.time() - t0) * 1000
+
+        log_event(
+            event="validation_error",
+            status_code=400,
+            latency_ms=round(latency_ms, 2),
+            error=str(exc)
+        )
+
         raise HTTPException(
             status_code=400,
             detail={
@@ -698,6 +740,16 @@ def predict(request: RawPredictionRequest) -> PredictionResponse:
         )
 
     except FileNotFoundError as exc:
+
+        latency_ms = (time.time() - t0) * 1000
+
+        log_event(
+            event="model_file_missing",
+            status_code=500,
+            latency_ms=round(latency_ms, 2),
+            error=str(exc)
+        )
+
         raise HTTPException(
             status_code=500,
             detail={
@@ -707,6 +759,16 @@ def predict(request: RawPredictionRequest) -> PredictionResponse:
         )
 
     except Exception as exc:
+
+        latency_ms = (time.time() - t0) * 1000
+
+        log_event(
+            event="prediction_failure",
+            status_code=500,
+            latency_ms=round(latency_ms, 2),
+            error=str(exc)
+        )
+
         raise HTTPException(
             status_code=500,
             detail={
