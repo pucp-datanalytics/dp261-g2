@@ -186,7 +186,7 @@ def feature_engineering(df):
 # CONFIGURACIÓN API
 # =========================================================
 
-API_URL = os.getenv("API_URL", "http://3.81.51.149:8000")
+API_URL = os.getenv("API_URL", "http://13.217.146.193:8000")
 
 # Mantenemos el modelo local como fallback
 @st.cache_resource
