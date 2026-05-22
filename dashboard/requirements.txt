@@ -9,3 +9,4 @@ shap
 scikit-learn
 xgboost
 requests
+plotly
