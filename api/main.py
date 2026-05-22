@@ -26,6 +26,11 @@ app = FastAPI(
     version="1.0.0",
 )
 
+log_event(
+    event="api_startup",
+    status="running"
+)
+
 # ============================================================
 # Friendly validation error messages
 # ============================================================
