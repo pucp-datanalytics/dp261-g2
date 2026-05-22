@@ -4,7 +4,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import plotly.express as px
+
 import joblib
+import requests
+import os
+
 import shap
 
 from pathlib import Path
@@ -179,19 +183,27 @@ def feature_engineering(df):
     return df
 
 # =========================================================
-# CARGAR MODELO
+# CONFIGURACIÓN API
 # =========================================================
 
+API_URL = os.getenv("API_URL", "http://3.81.51.149:8000")
+
+# Mantenemos el modelo local como fallback
 @st.cache_resource
 def load_model():
-
-    model = joblib.load(
-        MODEL_PATH
-    )
-
-    return model
+    try:
+        return joblib.load(MODEL_PATH)
+    except Exception:
+        return None
 
 model = load_model()
+
+def api_disponible():
+    try:
+        r = requests.get(f"{API_URL}/health", timeout=5)
+        return r.status_code == 200
+    except Exception:
+        return False
 
 # =========================================================
 # SIDEBAR
@@ -327,13 +339,85 @@ else:
 # PREDICCIONES
 # =========================================================
 
-y_proba = model.predict_proba(
-    X_eval
-)[:,1]
+def predecir_con_api(df_input):
+    """Llama a la API fila por fila y retorna array de probabilidades."""
+    probabilidades = []
+    
+    progress = st.progress(0)
+    total = len(df_input)
+    
+    for i, (_, row) in enumerate(df_input.iterrows()):
+        try:
+            # Reconstruir fecha desde columnas separadas
+            mes_map = {
+                "January":1,"February":2,"March":3,"April":4,
+                "May":5,"June":6,"July":7,"August":8,
+                "September":9,"October":10,"November":11,"December":12
+            }
+            mes_num = mes_map.get(
+                str(row.get("arrival_date_month","January")), 1
+            )
+            arrival_date = (
+                f"{int(row.get('arrival_date_year', 2017))}-"
+                f"{mes_num:02d}-"
+                f"{int(row.get('arrival_date_day_of_month', 1)):02d}"
+            )
 
-y_pred = (
-    y_proba >= threshold
-).astype(int)
+            payload = {
+                "hotel": str(row.get("hotel", "City Hotel")),
+                "lead_time": int(row.get("lead_time", 0)),
+                "arrival_date": arrival_date,
+                "stays_in_weekend_nights": int(row.get("stays_in_weekend_nights", 0)),
+                "stays_in_week_nights": int(row.get("stays_in_week_nights", 1)),
+                "adults": int(row.get("adults", 2)),
+                "children": int(row.get("children", 0) or 0),
+                "babies": int(row.get("babies", 0)),
+                "meal": str(row.get("meal", "BB")),
+                "market_segment": str(row.get("market_segment", "Online TA")),
+                "distribution_channel": str(row.get("distribution_channel", "TA/TO")),
+                "is_repeated_guest": int(row.get("is_repeated_guest", 0)),
+                "previous_cancellations": int(row.get("previous_cancellations", 0)),
+                "previous_bookings_not_canceled": int(row.get("previous_bookings_not_canceled", 0)),
+                "reserved_room_type": str(row.get("reserved_room_type", "A")),
+                "assigned_room_type": str(row.get("assigned_room_type", "A")),
+                "booking_changes": int(row.get("booking_changes", 0)),
+                "deposit_type": str(row.get("deposit_type", "No Deposit")),
+                "days_in_waiting_list": int(row.get("days_in_waiting_list", 0)),
+                "customer_type": str(row.get("customer_type", "Transient")),
+                "adr": float(row.get("adr", 100.0)),
+                "required_car_parking_spaces": int(row.get("required_car_parking_spaces", 0)),
+                "total_of_special_requests": int(row.get("total_of_special_requests", 0)),
+            }
+
+            resp = requests.post(
+                f"{API_URL}/predict",
+                json=payload,
+                timeout=10
+            )
+            resp.raise_for_status()
+            prob = resp.json().get("probability", 0.0)
+
+        except Exception:
+            prob = 0.0
+
+        probabilidades.append(prob)
+        progress.progress((i + 1) / total)
+
+    progress.empty()
+    return np.array(probabilidades)
+
+
+# Decidir si usar API o modelo local
+usar_api = api_disponible()
+
+if usar_api:
+    st.sidebar.success("✅ API activa — prediciendo con AWS")
+    y_proba = predecir_con_api(df_original)
+else:
+    st.sidebar.warning("⚠️ API no disponible — usando modelo local")
+    y_proba = model.predict_proba(X_eval)[:,1]
+
+y_pred = (y_proba >= threshold).astype(int)
 
 # =========================================================
 # RESULTADOS
