@@ -733,7 +733,8 @@ usar_api = api_disponible()
 
 if usar_api:
     st.sidebar.success("✅ API activa — prediciendo con AWS")
-    y_proba = predecir_con_api(df_original)
+    df_para_api = df_original if 'df_original' in dir() else df_eval
+    y_proba = predecir_con_api(df_para_api)
 else:
     st.sidebar.warning("⚠️ API no disponible — usando modelo local")
     y_proba = model.predict_proba(X_eval)[:,1]
